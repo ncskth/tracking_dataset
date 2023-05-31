@@ -18,6 +18,8 @@
 #include "flow_struct.h"
 #include "protocol.h"
 
+#define MAX(a, b) a > b ? a : b
+
 void init_timestamper(flow_struct & flow) {
     struct timespec time;
     struct timestamp_header entry;
@@ -64,6 +66,8 @@ int main(int argc, char *argv[]) {
     std::thread timestamper_t(init_timestamper, std::ref(flow));
     std::thread printer_t(init_printer, std::ref(flow));
 
+    uint8_t write_buf[BUFSIZ];
+    int write_index = 0;
     while(true){
         while (flow.data_available) {
             std::unique_lock lock{flow.queue_mutex, std::defer_lock};
@@ -71,9 +75,21 @@ int main(int argc, char *argv[]) {
             struct size_buf data = flow.data_queue.front();
             flow.data_queue.pop();
             lock.unlock();
-            if (fwrite(data.buf, 1, data.size, f) != data.size) {
-                return -2;
-            };
+
+            if (sizeof(write_buf) - write_index >= data.size) {
+                memcpy(write_buf + write_index, data.buf, data.size);
+                write_index += data.size;
+            } else {
+                int to_write = sizeof(write_buf) - write_index;
+                memcpy(write_buf + write_index, data.buf, to_write);
+                int e;
+                e = fwrite(write_buf, 1, sizeof(write_buf), f);
+                if (e != sizeof(write_buf)) {
+                    return -2;
+                }
+                write_index = data.size - to_write;
+                memcpy(write_buf, data.buf + to_write, data.size - to_write);
+            }
             flow.data_available--;
             delete[] data.buf;
         }
