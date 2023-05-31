@@ -21,6 +21,8 @@ struct __attribute__((packed)) camera_event {
 struct __attribute__((packed)) optitrack_header {
     uint32_t t;
     uint8_t object_id;
+    int16_t params;
+    float error;
     float pos_x;
     float pos_y;
     float pos_z;

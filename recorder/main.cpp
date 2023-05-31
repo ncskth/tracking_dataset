@@ -48,10 +48,11 @@ int main(int argc, char *argv[]) {
         return -1;
     }
     struct flow_struct flow;
+    flow.data_available = 0;
     FILE *f = fopen(argv[1], "w");
-    std::queue<std::unique_ptr<std::vector<uint8_t>>> message;
+
     std::thread camera_t(init_camera, std::ref(flow));
-    // std::thread optitrack_t(init_optitrack);
+    std::thread optitrack_t(init_optitrack, std::ref(flow));
     std::thread timestamper_t(init_timestamper, std::ref(flow));
 
     while(true){

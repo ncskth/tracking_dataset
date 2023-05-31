@@ -62,6 +62,7 @@ void init_camera(struct flow_struct & flow) {
     });
 
     cam.start();
+    printf("camera started\n");
     while (true) {
         std::this_thread::yield();
     }
