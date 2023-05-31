@@ -42,6 +42,14 @@ void init_timestamper(flow_struct & flow) {
     }
 }
 
+void init_printer(flow_struct & flow) {
+    while (true) {
+        printf("queue size: %d\n", flow.data_queue.size());
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(1000ms);
+    }
+}
+
 // main loop
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -54,6 +62,7 @@ int main(int argc, char *argv[]) {
     std::thread camera_t(init_camera, std::ref(flow));
     std::thread optitrack_t(init_optitrack, std::ref(flow));
     std::thread timestamper_t(init_timestamper, std::ref(flow));
+    std::thread printer_t(init_printer, std::ref(flow));
 
     while(true){
         while (flow.data_available) {
