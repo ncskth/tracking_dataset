@@ -20,6 +20,8 @@
 
 #define MAX(a, b) a > b ? a : b
 
+std::atomic<int> max_queue_size = 0;
+
 void init_timestamper(flow_struct & flow) {
     struct timespec time;
     struct timestamp_header entry;
@@ -46,7 +48,8 @@ void init_timestamper(flow_struct & flow) {
 
 void init_printer(flow_struct & flow) {
     while (true) {
-        printf("queue size: %d\n", flow.data_queue.size());
+        std::cout << "queue size: " << max_queue_size << "\n";
+        max_queue_size = 0;
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1000ms);
     }
@@ -68,8 +71,12 @@ int main(int argc, char *argv[]) {
 
     uint8_t write_buf[BUFSIZ];
     int write_index = 0;
+    struct timespec time;
+    struct timestamp_header entry;
+    entry.t = 0;
     while(true){
         while (flow.data_available) {
+            max_queue_size = MAX( (int) flow.data_available, (int) max_queue_size);
             std::unique_lock lock{flow.queue_mutex, std::defer_lock};
             lock.lock();
             struct size_buf data = flow.data_queue.front();
@@ -93,5 +100,29 @@ int main(int argc, char *argv[]) {
             flow.data_available--;
             delete[] data.buf;
         }
+
+        // this seems to only run at 50Hz
+        // clock_gettime(CLOCK_MONOTONIC, &time);
+        // uint32_t t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
+        // if (t - entry.t >= 10) {
+        //     entry.t = t;
+        //     uint8_t tmp_buf[sizeof(entry) + 1];
+        //     tmp_buf[0] = TIMESTAMP_HEADER;
+        //     memcpy(tmp_buf + 1, &entry, sizeof(entry));
+        //     if (sizeof(write_buf) - write_index >= sizeof(tmp_buf)) {
+        //         memcpy(write_buf + write_index, tmp_buf, sizeof(tmp_buf));
+        //     } else {
+        //         int to_write = sizeof(write_buf) - write_index;
+        //         memcpy(write_buf + write_index, tmp_buf, to_write);
+        //         int e;
+        //         e = fwrite(write_buf, 1, sizeof(write_buf), f);
+        //         if (e != sizeof(write_buf)) {
+        //             return -2;
+        //         }
+        //         write_index = sizeof(tmp_buf) - to_write;
+        //         memcpy(write_buf, tmp_buf + to_write, sizeof(tmp_buf) - to_write);
+        //     }
+        // }
+        std::this_thread::yield();
     };
 }

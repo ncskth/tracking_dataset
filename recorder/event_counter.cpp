@@ -53,6 +53,7 @@ int main(int argc, char** argv) {
             fread(&header, 1, sizeof(header), f);
             optitrack_ids[header.object_id] = 1;
             uint32_t ts_delta = header.t - pc_timestamp;
+            // printf(" %f %f %f\n", header.pos_x, header.pos_y, header.pos_z);
             min_optitrack_timestamp_delta = MIN(min_optitrack_timestamp_delta, ts_delta);
             max_optitrack_timestamp_delta = MAX(max_optitrack_timestamp_delta, ts_delta);
             num_tracks++;
@@ -67,7 +68,10 @@ int main(int argc, char** argv) {
                 sum += optitrack_ids[j];
             }
             last_print = pc_timestamp;
-            printf("*******%llu*******\n", pc_timestamp / 1e6);
+            if (first_print == 0) {
+                first_print = pc_timestamp;
+            }
+            printf("*******%llu*******\n", (pc_timestamp - first_print) / 1000000);
             printf("events: %fM\n", num_events / 1e6);
             printf("events delta: %llu\n", max_event_timestamp_delta - min_event_timestamp_delta);
             if (sum != 0) {
