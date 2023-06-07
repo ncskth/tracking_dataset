@@ -1,5 +1,6 @@
 
 #include <thread>
+#include <time.h>
 
 #include "libnatnet/NatNetTypes.h"
 #include "libnatnet/NatNetCAPI.h"
@@ -17,12 +18,16 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* track, void* pUserData)
 {
     struct flow_struct *flow = (struct flow_struct *) pUserData;
     double timestamp = track->fTimestamp;
+    struct timespec time;
+    clock_gettime(CLOCK_MONOTONIC, &time);
+    uint32_t pc_t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
     // fprintf(stdout, "optitrack timetamp%f\n", timestamp);
     struct size_buf data;
     data.buf = new uint8_t[track->nRigidBodies * (sizeof(struct optitrack_header) + 1)];
     int offset = 0;
     for(int i = 0; i < track->nRigidBodies; i++) {
         struct optitrack_header entry;
+        entry.pc_t = pc_t;
         entry.t = timestamp * 1000000;
         entry.params = track->RigidBodies[i].params;
         entry.object_id = track->RigidBodies[i].ID;

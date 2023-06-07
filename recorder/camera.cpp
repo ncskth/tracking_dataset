@@ -38,6 +38,9 @@ void init_camera(struct flow_struct & flow) {
         data.buf[0] = CAMERA_HEADER;
         offset += 1;
         offset += sizeof(struct camera_header);
+        struct timespec time;
+        clock_gettime(CLOCK_MONOTONIC, &time);
+        uint32_t pc_t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
         for (const Metavision::EventCD *ev = begin; ev != end; ++ev) {
             struct camera_event entry;
             entry.p = ev->p;
@@ -52,6 +55,7 @@ void init_camera(struct flow_struct & flow) {
         struct camera_header header;
         header.num_events = i;
         header.camera_id = 0;
+        header.pc_t = pc_t;
         memcpy(data.buf + 1, &header, sizeof(header));
         data.size = offset;
         std::unique_lock lock{flow.queue_mutex, std::defer_lock};
@@ -61,6 +65,7 @@ void init_camera(struct flow_struct & flow) {
         flow.data_available++;
     });
 
+    printf("resolution: %d %d\n", cam.geometry().width(), cam.geometry().height());
     cam.start();
     printf("camera started\n");
     while (true) {

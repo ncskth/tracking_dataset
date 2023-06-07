@@ -28,21 +28,20 @@ void init_timestamper(flow_struct & flow) {
     while (true) {
         clock_gettime(CLOCK_MONOTONIC, &time);
         uint32_t t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
-        if (t - entry.t >= 10) {
-            entry.t = t;
-            struct size_buf data;
-            data.size = sizeof(entry) + 1;
-            data.buf = new uint8_t[data.size];
-            data.buf[0] = TIMESTAMP_HEADER;
-            memcpy(data.buf + 1, &entry, sizeof(entry));
+        entry.pc_t = t;
+        struct size_buf data;
+        data.size = sizeof(entry) + 1;
+        data.buf = new uint8_t[data.size];
+        data.buf[0] = TIMESTAMP_HEADER;
+        memcpy(data.buf + 1, &entry, sizeof(entry));
 
-            std::unique_lock lock{flow.queue_mutex, std::defer_lock};
-            lock.lock();
-            flow.data_queue.push(data);
-            lock.unlock();
-            flow.data_available++;
-        }
-        std::this_thread::yield();
+        std::unique_lock lock{flow.queue_mutex, std::defer_lock};
+        lock.lock();
+        flow.data_queue.push(data);
+        lock.unlock();
+        flow.data_available++;
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(100ms);
     }
 }
 
@@ -58,6 +57,7 @@ void init_printer(flow_struct & flow) {
 // main loop
 int main(int argc, char *argv[]) {
     if (argc != 2) {
+        printf("please provide a path to store the data\n");
         return -1;
     }
     struct flow_struct flow;
@@ -71,9 +71,6 @@ int main(int argc, char *argv[]) {
 
     uint8_t write_buf[BUFSIZ];
     int write_index = 0;
-    struct timespec time;
-    struct timestamp_header entry;
-    entry.t = 0;
     while(true){
         while (flow.data_available) {
             max_queue_size = MAX( (int) flow.data_available, (int) max_queue_size);
@@ -100,29 +97,5 @@ int main(int argc, char *argv[]) {
             flow.data_available--;
             delete[] data.buf;
         }
-
-        // this seems to only run at 50Hz
-        // clock_gettime(CLOCK_MONOTONIC, &time);
-        // uint32_t t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
-        // if (t - entry.t >= 10) {
-        //     entry.t = t;
-        //     uint8_t tmp_buf[sizeof(entry) + 1];
-        //     tmp_buf[0] = TIMESTAMP_HEADER;
-        //     memcpy(tmp_buf + 1, &entry, sizeof(entry));
-        //     if (sizeof(write_buf) - write_index >= sizeof(tmp_buf)) {
-        //         memcpy(write_buf + write_index, tmp_buf, sizeof(tmp_buf));
-        //     } else {
-        //         int to_write = sizeof(write_buf) - write_index;
-        //         memcpy(write_buf + write_index, tmp_buf, to_write);
-        //         int e;
-        //         e = fwrite(write_buf, 1, sizeof(write_buf), f);
-        //         if (e != sizeof(write_buf)) {
-        //             return -2;
-        //         }
-        //         write_index = sizeof(tmp_buf) - to_write;
-        //         memcpy(write_buf, tmp_buf + to_write, sizeof(tmp_buf) - to_write);
-        //     }
-        // }
-        std::this_thread::yield();
     };
 }

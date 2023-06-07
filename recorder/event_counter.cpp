@@ -6,6 +6,7 @@
 
 int main(int argc, char** argv) {
     if (argc != 2) {
+        printf("please provide a path to read from\n");
         return -1;
     }
     FILE *f = fopen(argv[1], "r");
@@ -32,6 +33,7 @@ int main(int argc, char** argv) {
         int id = fgetc(f);
         if (id == CAMERA_HEADER) {
             struct camera_header header;
+            pc_timestamp = header.pc_t;
             fread(&header, 1, sizeof(header), f);
             for (int i = 0; i < header.num_events; i++) {
                 struct camera_event entry;
@@ -45,13 +47,14 @@ int main(int argc, char** argv) {
         else if (id == TIMESTAMP_HEADER) {
             struct timestamp_header header;
             fread(&header, 1, sizeof(header), f);
-            pc_timestamp = header.t;
+            pc_timestamp = header.pc_t;
             num_timestamps++;
         }
         else if (id == OPTITRACK_HEADER) {
             struct optitrack_header header;
             fread(&header, 1, sizeof(header), f);
             optitrack_ids[header.object_id] = 1;
+            pc_timestamp = header.pc_t;
             uint32_t ts_delta = header.t - pc_timestamp;
             // printf(" %f %f %f\n", header.pos_x, header.pos_y, header.pos_z);
             min_optitrack_timestamp_delta = MIN(min_optitrack_timestamp_delta, ts_delta);

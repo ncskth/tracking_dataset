@@ -7,6 +7,7 @@ enum data_type {
 };
 
 struct __attribute__((packed)) camera_header {
+    uint32_t pc_t;
     uint8_t camera_id;
     uint32_t num_events;
 };
@@ -19,6 +20,7 @@ struct __attribute__((packed)) camera_event {
 };
 
 struct __attribute__((packed)) optitrack_header {
+    uint32_t pc_t;
     uint32_t t;
     uint8_t object_id;
     int16_t params;
@@ -33,5 +35,5 @@ struct __attribute__((packed)) optitrack_header {
 };
 
 struct __attribute__((packed)) timestamp_header {
-    uint32_t t;
+    uint32_t pc_t;
 };
