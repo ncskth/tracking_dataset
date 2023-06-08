@@ -44,7 +44,6 @@ int main(int argc, char **argv) {
     SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
 
-
     FILE *f = fopen(file_path, "r");
     uint32_t current_timestamp = 0;
     uint32_t last_updated_timestamp = 0;
@@ -59,6 +58,7 @@ int main(int argc, char **argv) {
             current_timestamp = header.pc_t;
             for (int i = 0; i < header.num_events; i++) {
                 struct camera_event entry;
+                // current_timestamp = entry.t;
                 fread(&entry, 1, sizeof(entry), f);
                 // event_counter = (event_counter + 1) % event_divider;
                 if (0 == rand() % event_divider) {
@@ -74,12 +74,12 @@ int main(int argc, char **argv) {
         else if (id == TIMESTAMP_HEADER) {
             struct timestamp_header header;
             fread(&header, 1, sizeof(header), f);
-            current_timestamp = header.pc_t;
+            // current_timestamp = header.pc_t;
         }
         else if (id == OPTITRACK_HEADER) {
             struct optitrack_header header;
             fread(&header, 1, sizeof(header), f);
-            current_timestamp = header.pc_t;
+            // current_timestamp = header.pc_t;
         }
         else {
             return -2;
