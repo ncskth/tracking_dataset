@@ -12,7 +12,7 @@ uint32_t event_counter;
 
 int main(int argc, char** argv) {
     if (argc != 4) {
-        printf("please provide a path to read from and a divider for the events\n");
+        printf("usage: [in file] [divider] [out file]\n");
         return -1;
     }
     FILE *f = fopen(argv[1], "r");

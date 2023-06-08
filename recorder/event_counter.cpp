@@ -6,7 +6,7 @@
 
 int main(int argc, char** argv) {
     if (argc != 2) {
-        printf("please provide a path to read from\n");
+        printf("usage: [in file]\n");
         return -1;
     }
     FILE *f = fopen(argv[1], "r");

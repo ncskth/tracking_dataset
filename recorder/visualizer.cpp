@@ -30,7 +30,7 @@ int main(int argc, char **argv) {
         start_at = atoi(argv[4]);
     }
     else {
-        printf("invalid arguments\n");
+        printf("usage: [in file] [frame ms] [data ms] [optional: start at]\n");
         return -1;
     }
 
