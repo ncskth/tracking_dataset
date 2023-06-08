@@ -11,6 +11,8 @@ add_library(libnatnet SHARED IMPORTED)
 set_target_properties(libnatnet
     PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/libnatnet/libNatNet.so)
 
+add_executable(stat_analyzer stat_analyzer.cpp)
+
 add_executable(event_counter event_counter.cpp)
 
 add_executable(visualizer visualizer.cpp)

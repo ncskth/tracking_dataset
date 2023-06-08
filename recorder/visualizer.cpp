@@ -12,8 +12,6 @@
 
 #define EVENT_DIVIDER_PER_MS 1
 
-uint32_t event_counter;
-
 int main(int argc, char **argv) {
     char* file_path;
     int real_ms_per_frame;
@@ -55,12 +53,11 @@ int main(int argc, char **argv) {
         if (id == CAMERA_HEADER) {
             struct camera_header header;
             fread(&header, 1, sizeof(header), f);
-            current_timestamp = header.pc_t;
+            // current_timestamp = header.pc_t;
             for (int i = 0; i < header.num_events; i++) {
                 struct camera_event entry;
-                // current_timestamp = entry.t;
+                current_timestamp = entry.t;
                 fread(&entry, 1, sizeof(entry), f);
-                // event_counter = (event_counter + 1) % event_divider;
                 if (0 == rand() % event_divider) {
                     if (entry.p) {
                         SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
