@@ -9,6 +9,10 @@ In a binary stream the data comes in the following format repeatedly
 ```
 The only package that has any data is the camera so far. It is followed by `header.num_events` camera events.
 
+### Object ids
+* 0 - 9: cameras
+* 10: Rectangle
+
 ## Building
 
 Building this is a bit of a mess.
