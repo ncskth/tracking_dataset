@@ -30,6 +30,25 @@
 void init_camera(struct flow_struct & flow) {
     Metavision::Camera cam; // create the camera
     cam = Metavision::Camera::from_first_available();
+
+    auto &biases = cam.biases();
+    auto facility = biases.get_facility();
+    for (auto k : {"bias_diff", "bias_diff_on", "bias_diff_off", "bias_fo",
+                    "bias_hpf", "bias_refr"}) {
+        std::cout << "Bias " << std::setw(20) << k << ": " << facility->get(k)
+                << std::endl;
+    }
+
+    try {
+        facility->set("bias_diff", 80);
+        facility->set("bias_diff_on", 115);
+        facility->set("bias_diff_off", 52);
+        facility->set("bias_fo", 62);
+        facility->set("bias_hpf", 0);
+        facility->set("bias_refr", 68);
+    } catch (std::runtime_error e) {
+        std::cout << e.what() << std::endl;
+    }
     cam.cd().add_callback([&flow](const Metavision::EventCD *begin, const Metavision::EventCD *end) {
         struct size_buf data;
         int offset = 0;

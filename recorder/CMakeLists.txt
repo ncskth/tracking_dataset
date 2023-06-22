@@ -2,9 +2,8 @@ project(recorder)
 
 cmake_minimum_required(VERSION 3.5)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-O3")
-
 find_package(MetavisionSDK COMPONENTS core driver ui REQUIRED)
 
 add_library(libnatnet SHARED IMPORTED)
@@ -14,6 +13,7 @@ set_target_properties(libnatnet
 add_executable(stat_analyzer stat_analyzer.cpp)
 
 add_executable(event_counter event_counter.cpp)
+add_executable(csv_writer csv_writer.cpp)
 
 add_executable(visualizer visualizer.cpp)
 target_link_libraries(visualizer -lSDL2)
