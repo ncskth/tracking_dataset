@@ -1,5 +1,21 @@
 #include <stdint.h>
 
+#pragma once
+
+enum optitrack_ids {
+    CAMERA0 = 0,
+    CAMERA1 = 1,
+    CAMERA2 = 2,
+    CAMERA3 = 3,
+    CAMERA4 = 4,
+    CAMERA5 = 5,
+    CAMERA6 = 6,
+    CAMERA7 = 7,
+    CAMERA8 = 8,
+    CAMERA9 = 9,
+    RECTANGLE0 = 11,
+};
+
 enum data_type {
     CAMERA_HEADER = 0,
     OPTITRACK_HEADER = 1,

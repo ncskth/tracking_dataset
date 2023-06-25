@@ -28,6 +28,8 @@ int main(int argc, char** argv) {
     uint32_t last_print = 0;
 
     uint32_t first_print = 0;
+    uint32_t last_event_t = 0;
+    bool events_strictly_growing = true;
 
     while (!feof(f)) {
         int id = fgetc(f);
@@ -42,6 +44,10 @@ int main(int argc, char** argv) {
                 min_event_timestamp_delta = MIN(min_event_timestamp_delta, ts_delta);
                 max_event_timestamp_delta = MAX(max_event_timestamp_delta, ts_delta);
                 num_events++;
+                if (entry.t < last_event_t) {
+                    events_strictly_growing = false;
+                }
+                last_event_t = entry.t;
             }
         }
         else if (id == TIMESTAMP_HEADER) {
@@ -82,7 +88,8 @@ int main(int argc, char** argv) {
                 printf("optitrack delta: %llu\n", max_optitrack_timestamp_delta - min_optitrack_timestamp_delta);
             }
             printf("timestamps: %llu\n", num_timestamps);
-
+            printf("timestamps strictly growing %d\n", events_strictly_growing);
+            events_strictly_growing = true;
             min_optitrack_timestamp_delta = ~0;
             max_optitrack_timestamp_delta = 0;
             min_event_timestamp_delta = ~0;

@@ -48,6 +48,8 @@ void init_timestamper(flow_struct & flow) {
 void init_printer(flow_struct & flow) {
     while (true) {
         std::cout << "queue size: " << max_queue_size << "\n";
+        std::cout << "events: " << num_events / 1e6 << "Me\n";
+        num_events = 0;
         max_queue_size = 0;
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1000ms);

@@ -15,6 +15,9 @@ add_executable(stat_analyzer stat_analyzer.cpp)
 
 add_executable(event_counter event_counter.cpp)
 
+add_executable(data_converter data_converter.cpp)
+target_link_libraries(data_converter -llz4)
+
 add_executable(visualizer visualizer.cpp)
 target_link_libraries(visualizer -lSDL2)
 
