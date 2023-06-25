@@ -1,0 +1,15 @@
+enum CompressionType : int32 {
+	NONE,
+	LZ4,
+	LZ4_HIGH,
+	ZSTD,
+	ZSTD_HIGH
+}
+
+table IOHeader {
+	compression: CompressionType = NONE;
+	data_table_position: int64 = -1;
+	info_node: string;
+}
+
+root_type IOHeader;
