@@ -27,6 +27,8 @@
 //     std::cout << "There were " << counter << " events in this callback" << std::endl;
 // }
 
+uint32_t num_events;
+
 void init_camera(struct flow_struct & flow) {
     Metavision::Camera cam; // create the camera
     cam = Metavision::Camera::from_first_available();
@@ -51,6 +53,7 @@ void init_camera(struct flow_struct & flow) {
             offset += sizeof(entry);
             i++;
         }
+        num_events += i;
 
         struct camera_header header;
         header.num_events = i;
