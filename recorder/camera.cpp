@@ -3,7 +3,7 @@
 #include <metavision/sdk/driver/camera.h>
 #include <metavision/sdk/base/events/event_cd.h>
 #include <string.h>
-
+#include <iomanip>
 #include "camera.h"
 #include "protocol.h"
 
