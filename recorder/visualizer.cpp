@@ -7,6 +7,7 @@
 #include <eigen3/Eigen/Geometry>
 #include <iostream>
 #include <math.h>
+#include <map>
 
 #include "protocol.h"
 
@@ -27,12 +28,29 @@
 
 #define EVENT_DIVIDER_PER_MS 1
 
-Eigen::Vector3<double> camera_position;
-Eigen::Quaternion<double> camera_attitude;
-Eigen::Vector3<double> object_position;
-Eigen::Quaternion<double> object_attitude;
-int object_id;
-int camera_id;
+
+struct tracked_object {
+    int id;
+    Eigen::Vector3<double> position;
+    Eigen::Quaternion<double> attitude;
+};
+
+tracked_object camera_object;
+
+std::map<int, tracked_object> tracked_objects;
+
+std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
+
+
+void populate_id_to_polygons() {
+    id_to_polygon[RECTANGLE0] = {
+        {-RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0},
+        {RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0},
+        {RECTANGLE_WIDTH/2.0, 0, RECTANGLE_HEIGHT/2.0},
+        {-RECTANGLE_WIDTH/2.0, 0, RECTANGLE_HEIGHT/2.0},
+        {-RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0},
+    };
+}
 
 Eigen::Quaternion<double> camera_offset_q(void) {
     Eigen::AngleAxisd xAngle(0, Eigen::Vector3d::UnitX());
@@ -79,6 +97,8 @@ int main(int argc, char **argv) {
         return -1;
     }
 
+    populate_id_to_polygons();
+
     SDL_Event event;
     SDL_Renderer *renderer;
     SDL_Window *window;
@@ -121,13 +141,15 @@ int main(int argc, char **argv) {
             fread(&header, 1, sizeof(header), f);
             // printf("id %d\n", header.object_id);
             if (header.object_id  < 10) {
-                camera_position = {header.pos_x, header.pos_y, header.pos_z};
-                camera_attitude = Eigen::Quaternion<double>{header.q_w, header.q_x, header.q_y, header.q_z}.normalized();
-                camera_id = header.object_id;
+                camera_object.position = {header.pos_x, header.pos_y, header.pos_z};
+                camera_object.attitude = Eigen::Quaternion<double>{header.q_w, header.q_x, header.q_y, header.q_z}.normalized();
+                camera_object.id = header.object_id;
             } else {
-                object_position = {header.pos_x, header.pos_y, header.pos_z};
-                object_attitude = Eigen::Quaternion<double>{header.q_w, header.q_x, header.q_y, header.q_z}.normalized();
-                object_id = header.object_id;
+                struct tracked_object object;
+                object.position = {header.pos_x, header.pos_y, header.pos_z};
+                object.attitude = Eigen::Quaternion<double>{header.q_w, header.q_x, header.q_y, header.q_z}.normalized();
+                object.id = header.object_id;
+                tracked_objects[object.id] = object;
             }
         }
         else {
@@ -138,83 +160,46 @@ int main(int argc, char **argv) {
             if (first_timestamp == 0) {
                 first_timestamp = current_timestamp;
             }
-            camera_attitude = camera_attitude * camera_offset_q();
 
             // draw optitrack
-            std::cout << "------------------" << std::endl;
-            Eigen::Vector3<double> relative_position = (object_position - camera_position);
-            std::cout << "raw relative\n" << relative_position << std::endl;
-            relative_position = camera_attitude.inverse() * relative_position;
-            std::cout << "rotated relative\n" << relative_position << std::endl;
-
-            Eigen::Quaternion<double> relative_attitude = object_attitude.normalized() * camera_attitude.normalized();
-            Eigen::Vector3<double> relative_angle = relative_attitude.toRotationMatrix().eulerAngles(0, 1, 2);
-            Eigen::Vector3<double> camera_angle = camera_attitude.toRotationMatrix().eulerAngles(0, 1, 2);
-
-            Eigen::Vector2<double> center = position_to_pixel(relative_position);
-            SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-            const int cross_size = 20;
-            SDL_RenderDrawLine(renderer, center.x() - cross_size, center.y(), center.x() + cross_size, center.y());
-            SDL_RenderDrawLine(renderer, center.x(), center.y() - cross_size, center.x(), center.y() + cross_size);
-            if (object_id == RECTANGLE0) {
-                Eigen::Vector3<double> tl3 = {-RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0};
-                Eigen::Vector3<double> tr3 = {RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0};
-                Eigen::Vector3<double> bl3 = {-RECTANGLE_WIDTH/2.0, 0, RECTANGLE_HEIGHT/2.0};
-                Eigen::Vector3<double> br3 = {RECTANGLE_WIDTH/2.0, 0, RECTANGLE_HEIGHT/2.0};
-
-                object_attitude = object_attitude * Eigen::AngleAxisd(0, Eigen::Vector3d::UnitZ());
-
-                tl3 = object_attitude * tl3;
-                tr3 = object_attitude * tr3;
-                bl3 = object_attitude * bl3;
-                br3 = object_attitude * br3;
-
-                tl3 += object_position - camera_position;
-                tr3 += object_position - camera_position;
-                bl3 += object_position - camera_position;
-                br3 += object_position - camera_position;
-
-                tl3 = camera_attitude.inverse().normalized() * tl3;
-                tr3 = camera_attitude.inverse().normalized() * tr3;
-                bl3 = camera_attitude.inverse().normalized() * bl3;
-                br3 = camera_attitude.inverse().normalized() * br3;
-
-                // printf("center %f %f %f\n", relative_position.x(), relative_position.y(), relative_position.z());
-                // printf("top left %f %f %f\n", tl3.x(), tl3.y(), tl3.z());
-                // printf("top right %f %f %f\n", tr3.x(), tr3.y(), tr3.z());
-                // printf("bot left %f %f %f\n", bl3.x(), bl3.y(), bl3.z());
-                // printf("bot right %f %f %f\n", br3.x(), br3.y(), br3.z());
-
-                Eigen::Vector2<double> tl = position_to_pixel(tl3);
-                Eigen::Vector2<double> tr = position_to_pixel(tr3);
-                Eigen::Vector2<double> bl = position_to_pixel(bl3);
-                Eigen::Vector2<double> br = position_to_pixel(br3);
-
+            for (auto object : tracked_objects) {
+                //draw cross
+                Eigen::Vector3<double> relative_position = (object.second.position - camera_object.position);
+                relative_position = camera_object.attitude.inverse() * relative_position;
+                Eigen::Vector2<double> center = position_to_pixel(relative_position);
                 SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-                SDL_RenderDrawLine(renderer, tl.x(), tl.y(), tr.x(), tr.y());
-                SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255);
-                SDL_RenderDrawLine(renderer, tr.x(), tr.y(), br.x(), br.y());
-                SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
-                SDL_RenderDrawLine(renderer, br.x(), br.y(), bl.x(), bl.y());
-                SDL_RenderDrawLine(renderer, bl.x(), bl.y(), tl.x(), tl.y());
+                const int cross_size = 20;
+                SDL_RenderDrawLine(renderer, center.x() - cross_size, center.y(), center.x() + cross_size, center.y());
+                SDL_RenderDrawLine(renderer, center.x(), center.y() - cross_size, center.x(), center.y() + cross_size);
 
-                // printf("top left %f %f\n", tl.x(), tl.y());
-                // printf("top right %f %f\n", tr.x(), tr.y());
-                // printf("bot left %f %f\n", bl.x(), bl.y());
-                // printf("bot right %f %f\n", br.x(), br.y());
+
+                //render 3d
+                std::vector<Eigen::Vector3<double>> points = id_to_polygon.at(object.first);
+                bool first = true;
+                Eigen::Vector2<double> prev_pixel;
+                SDL_SetRenderDrawColor(renderer, 0, 255, 255, 255); //set color for first
+                for (auto point : points) {
+                    Eigen::Vector3<double> current_point = point;
+                    Eigen::Vector2<double> current_pixel;
+                    current_point = object.second.attitude * current_point;
+                    current_point += object.second.position - camera_object.position;
+                    current_point = camera_object.attitude.inverse().normalized() * current_point;
+                    current_pixel = position_to_pixel(current_point);
+                    if (first) {
+                        first = false;
+                        prev_pixel = current_pixel;
+                        continue;
+                    }
+                    SDL_RenderDrawLine(renderer, prev_pixel.x(), prev_pixel.y(), current_pixel.x(), current_pixel.y());
+                    SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // set color after so it's different for the first line
+                    prev_pixel = current_pixel;
+                }
             }
-
 
             // present frame
             SDL_RenderPresent(renderer);
             SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
             SDL_RenderClear(renderer);
-
-
-            // printf("frame update %fs\n", (current_timestamp - first_timestamp) / 1000000.0);
-            // printf("relative position %f %f %f\n", relative_position.x(), relative_position.y(), relative_position.z());
-            // printf("center pixel %f %f\n", center.x(), center.y());
-            // printf("------------------------\n");
 
             last_updated_timestamp = current_timestamp;
             uint64_t now = std::chrono::system_clock::now().time_since_epoch().count() / 1000000;
