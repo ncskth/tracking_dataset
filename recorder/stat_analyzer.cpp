@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
     FILE *f_out = fopen(argv[3], "w");
 
     std::vector<uint16_t> deltas;
-
+    uint32_t event_timestamp;
     while (!feof(f)) {
         int id = fgetc(f);
         if (id == CAMERA_HEADER) {
@@ -30,8 +30,8 @@ int main(int argc, char** argv) {
                 struct camera_event entry;
                 fread(&entry, 1, sizeof(entry), f);
                 if (event_counter++ % divider == 0) {
-                    uint32_t delta = header.pc_t - entry.t;
-                    fprintf(f_out, "%lld\n", delta);
+                    // uint32_t delta = header.pc_t - entry.t;
+                    event_timestamp = entry.t;
                 }
             }
         }
@@ -42,6 +42,8 @@ int main(int argc, char** argv) {
         else if (id == OPTITRACK_HEADER) {
             struct optitrack_header header;
             fread(&header, 1, sizeof(header), f);
+            uint32_t delta = event_timestamp -header.t;
+            fprintf(f_out, "%lld\n", delta);
         }
         else {
             return -2;
