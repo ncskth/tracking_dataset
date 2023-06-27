@@ -1,0 +1,3 @@
+[submodule "recorder/HighFive"]
+	path = recorder/HighFive
+	url = git@github.com:BlueBrain/HighFive.git

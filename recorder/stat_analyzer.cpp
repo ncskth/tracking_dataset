@@ -43,7 +43,9 @@ int main(int argc, char** argv) {
             struct optitrack_header header;
             fread(&header, 1, sizeof(header), f);
             uint32_t delta = event_timestamp -header.t;
-            fprintf(f_out, "%lld\n", delta);
+            if (rand() % divider == 0) {
+                fprintf(f_out, "%lld\n", delta);
+            }
         }
         else {
             return -2;
