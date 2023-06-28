@@ -16,17 +16,14 @@
 
 #define PI 3.141525
 
-#define CAMERA_VERTICAL_FOV (65.0 * DEG_TO_RAD)
+#define CAMERA_VERTICAL_FOV (80.0 * DEG_TO_RAD)
 
-#define CAMERA_HORIZONTAL_FOV (95.0 * DEG_TO_RAD)
+#define CAMERA_HORIZONTAL_FOV (145.0 * DEG_TO_RAD)
 
 #define RAD_TO_DEG (180.0/PI)
 #define DEG_TO_RAD (PI/180.0)
 
-#define RECTANGLE_WIDTH 0.4
-#define RECTANGLE_HEIGHT 0.3
-
-#define EVENT_DIVIDER_PER_MS 1
+#define EVENT_DIVIDER_PER_MS 0.25
 
 
 struct tracked_object {
@@ -43,13 +40,54 @@ std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
 
 
 void populate_id_to_polygons() {
+    // rectangle
+    const double rectangle_width = 0.4;
+    const double rectengle_height = 0.3;
     id_to_polygon[RECTANGLE0] = {
-        {-RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0},
-        {RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0},
-        {RECTANGLE_WIDTH/2.0, 0, RECTANGLE_HEIGHT/2.0},
-        {-RECTANGLE_WIDTH/2.0, 0, RECTANGLE_HEIGHT/2.0},
-        {-RECTANGLE_WIDTH/2.0, 0, -RECTANGLE_HEIGHT/2.0},
+        {-rectangle_width / 2.0, 0, -rectengle_height / 2.0},
+        {rectangle_width / 2.0, 0, -rectengle_height / 2.0},
+        {rectangle_width / 2.0, 0, rectengle_height / 2.0},
+        {-rectangle_width / 2.0, 0, rectengle_height / 2.0},
+        {-rectangle_width / 2.0, 0, -rectengle_height / 2.0},
     };
+
+    id_to_polygon[CHECKERBOARD] = {
+        {-rectengle_height / 2.0, 0, -rectangle_width / 2.0},
+        {rectengle_height / 2.0, 0, -rectangle_width / 2.0},
+        {rectengle_height / 2.0, 0, rectangle_width / 2.0},
+        {-rectengle_height / 2.0, 0, rectangle_width / 2.0},
+        {-rectengle_height / 2.0, 0, -rectangle_width / 2.0},
+    };
+
+    // square
+    const double square_width = 0.29;
+    id_to_polygon[SQUARE0] = {
+        {-square_width / 2.0, 0, -square_width / 2.0},
+        {square_width / 2.0, 0, -square_width / 2.0},
+        {square_width / 2.0, 0, square_width / 2.0},
+        {-square_width / 2.0, 0, square_width / 2.0},
+        {-square_width / 2.0, 0, -square_width / 2.0},
+    };
+
+    // triangle
+    const double triangle_line_length = 0.29;
+    id_to_polygon[TRIANGLE0] = {
+        {-triangle_line_length / 2, 0, 0},
+        {triangle_line_length / 2, 0, triangle_line_length / 2},
+        {triangle_line_length / 2, 0, -triangle_line_length / 2},
+        {-triangle_line_length / 2, 0, 0}
+    };
+
+    // circle
+    const double circle_radius = 0.29/2;
+    int iterations = 16;
+    for (int i = 0; i <= iterations; i++) {
+        id_to_polygon[CIRCLE0].push_back({
+            sin(2 * PI * i / iterations) * circle_radius,
+            0,
+            cos(2 * PI * i / iterations) * circle_radius,
+        });
+    }
 }
 
 Eigen::Quaternion<double> camera_offset_q(void) {
@@ -122,7 +160,7 @@ int main(int argc, char **argv) {
                 struct camera_event entry;
                 current_timestamp = entry.t;
                 fread(&entry, 1, sizeof(entry), f);
-                if (0 == rand() % event_divider) {
+                if (0 == rand() % (event_divider + 1)) {
                     if (entry.p) {
                         SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
                     } else {

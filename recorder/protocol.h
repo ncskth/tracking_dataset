@@ -14,6 +14,11 @@ enum optitrack_ids {
     CAMERA8 = 8,
     CAMERA9 = 9,
     RECTANGLE0 = 11,
+    SQUARE0 = 12,
+    CIRCLE0 = 13,
+    TRIANGLE0 = 14,
+    TEST_POINT = 128,
+    CHECKERBOARD = 129
 };
 
 enum data_type {

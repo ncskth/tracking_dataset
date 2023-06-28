@@ -64,7 +64,7 @@ void init_optitrack(struct flow_struct & data) {
     g_connectParams.connectionType = kDefaultConnectionType;
 
     g_connectParams.serverAddress = "172.16.222.18"; // optitrack server
-    g_connectParams.localAddress = "172.16.223.254"; // local ip
+    g_connectParams.localAddress = "172.16.223.229"; // local ip
     printf("Optitrack connecting...\n");
     int e;
     e = g_pClient->Connect( g_connectParams );
