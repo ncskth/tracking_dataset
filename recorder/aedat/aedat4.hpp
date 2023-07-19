@@ -93,7 +93,25 @@ struct AEDAT4 : FileBase {
     // Save header
     flatbuffers::FlatBufferBuilder fbb;
     fbb.ForceDefaults(true);
-    auto infoNode = "<dv version=\"4.0\"><node name=\"outInfo\"></node></dv>";
+    auto infoNode =
+R"""(<dv version="2.0">
+    <node name="outInfo" path="/mainloop/Recorder/outInfo/">
+        <node name="0" path="/mainloop/Recorder/outInfo/0/">
+            <attr key="compression" type="string">LZ4</attr>
+            <attr key="originalModuleName" type="string">capture</attr>
+            <attr key="originalOutputName" type="string">events</attr>
+            <attr key="typeDescription" type="string">Array of events (polarity ON/OFF).</attr>
+            <attr key="typeIdentifier" type="string">EVTS</attr>
+            <node name="info" path="/mainloop/Recorder/outInfo/0/info/">
+                <attr key="sizeX" type="int">1280</attr>
+                <attr key="sizeY" type="int">720</attr>
+                <attr key="source" type="string">Prophesee EVK3.1</attr>
+                <attr key="tsOffset" type="long">0</attr>
+            </node>
+        </node>
+    </node>
+</dv>)""";
+
     auto headerOffset =
         CreateIOHeaderDirect(fbb, CompressionType_LZ4, -1L, infoNode);
     fbb.FinishSizePrefixed(headerOffset);
@@ -189,21 +207,6 @@ struct AEDAT4 : FileBase {
     }
     return {events, count};
   }
-
-  // Generator<AER::Event> stream(const int64_t n_events = -1) {
-  //   int64_t size = 0, count = 0;
-  //   static const size_t STREAM_BUFFER_SIZE = 128;
-  //   do {
-  //     auto ret = read_events(STREAM_BUFFER_SIZE);
-  //     auto events = std::get<0>(ret);
-  //     size = std::get<1>(ret);
-  //     for (size_t i = 0; i < size; i++) {
-  //       co_yield events[i];
-  //       count++;
-  //     }
-  //   } while (size == STREAM_BUFFER_SIZE &&
-  //            (n_events < 0 || (n_events - count >= 0)));
-  // }
 
   explicit AEDAT4(file_t &&fp)
       : fp{std::move(fp)}, dst_buffer(4096), packet_buffer(4096) {

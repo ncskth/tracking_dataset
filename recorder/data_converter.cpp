@@ -12,6 +12,8 @@
 #include "protocol.h"
 #include "aedat/aer.hpp"
 
+#define CONVERTER_VERSION "1.0"
+
 #define SKIP_BEGINNING 5000000
 
 #define MEAN_FROM_OPTITRACK_DELTAS 500
@@ -65,7 +67,8 @@ int main(int argc, char **argv) {
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
     metadata_output << "date: " << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << std::endl;
-    metadata_output << "source file: " << argv[1];
+    metadata_output << "source file: " << argv[1] << std::endl;
+    metadata_output << "version: " << CONVERTER_VERSION << std::endl;
 
     uint32_t first_pc_timestamp = 0;
     bool active = false;
@@ -143,6 +146,7 @@ int main(int argc, char **argv) {
                     continue;
                 }
                 uint32_t t_adjusted = entry.t - event_correction - start_timestamp;
+                // printf("t adjusted %d\n", t_adjusted);
                 AEDAT::PolarityEvent formal_event =  {
                     .timestamp = t_adjusted,
                     .x = entry.x,
