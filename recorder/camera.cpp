@@ -42,12 +42,20 @@ void init_camera(struct flow_struct & flow) {
     }
 
     try {
+        // facility->set("bias_diff", 80);
+        // facility->set("bias_diff_on", 115);
+        // facility->set("bias_diff_off", 52);
+        // facility->set("bias_fo", 74);
+        // facility->set("bias_hpf", 0);
+        // facility->set("bias_refr", 68);
+
         facility->set("bias_diff", 80);
-        facility->set("bias_diff_on", 115);
-        facility->set("bias_diff_off", 52);
-        facility->set("bias_fo", 62);
+        facility->set("bias_diff_on", 120);
+        facility->set("bias_diff_off", 45);
+        facility->set("bias_fo", 45);
         facility->set("bias_hpf", 0);
-        facility->set("bias_refr", 68);
+        facility->set("bias_refr", 40);
+
     } catch (std::runtime_error e) {
         std::cout << e.what() << std::endl;
     }
