@@ -1,19 +1,20 @@
+file_identifier "FTAB";
 
 struct PacketHeader {
-	stream_id: int32;
-	size: int32;
+	StreamID: int32;
+	Size: int32;
 }
 
 table FileDataDefinition {
-	byte_offset: int64;
-	packet_info: PacketHeader (native_inline);
-	num_elements: int64;
-	timestamp_start: int64;
-	timestamp_end: int64;
+	ByteOffset: int64;
+	PacketInfo: PacketHeader (native_inline);
+	NumElements: int64;
+	TimestampStart: int64;
+	TimestampEnd: int64;
 }
 
 table FileDataTable {
-	table: [FileDataDefinition] (native_inline);
+	Table: [FileDataDefinition] (native_inline);
 }
 
 root_type FileDataTable;

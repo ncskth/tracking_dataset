@@ -1,3 +1,11 @@
+native_include "cstring.hpp";
+
+file_identifier "IOHE";
+
+enum Constants : int32 {
+	AEDAT_VERSION_LENGTH = 14
+}
+
 enum CompressionType : int32 {
 	NONE,
 	LZ4,
@@ -8,8 +16,8 @@ enum CompressionType : int32 {
 
 table IOHeader {
 	compression: CompressionType = NONE;
-	data_table_position: int64 = -1;
-	info_node: string;
+	dataTablePosition: int64 = -1;
+	infoNode: string;
 }
 
 root_type IOHeader;

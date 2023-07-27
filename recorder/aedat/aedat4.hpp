@@ -91,8 +91,6 @@ struct AEDAT4 : FileBase {
   static size_t save_header(std::fstream &stream) {
     stream << "#!AER-DAT4.0\r\n";
     // Save header
-    flatbuffers::FlatBufferBuilder fbb;
-    fbb.ForceDefaults(true);
     auto infoNode =
 R"""(<dv version="2.0">
     <node name="outInfo" path="/mainloop/Recorder/outInfo/">
@@ -112,11 +110,15 @@ R"""(<dv version="2.0">
     </node>
 </dv>)""";
 
+    flatbuffers::FlatBufferBuilder fbb{2 * 1024};
+    fbb.ForceDefaults(true);
     auto headerOffset =
         CreateIOHeaderDirect(fbb, CompressionType_LZ4, -1L, infoNode);
-    fbb.FinishSizePrefixed(headerOffset);
-    stream.write((char *)fbb.GetBufferPointer(), fbb.GetSize());
-    std::cout << "Data " << stream.tellp() << std::endl;
+    
+    FinishSizePrefixedIOHeaderBuffer(fbb, headerOffset);
+
+    stream.write(reinterpret_cast<char *>(fbb.GetBufferPointer()), static_cast<std::streamsize>(fbb.GetSize()));
+    std::cout << "Data " << stream.tellp() << " Header " << fbb.GetSize() << std::endl;
     return fbb.GetSize();
   }
 
@@ -132,8 +134,8 @@ R"""(<dv version="2.0">
     stream.read(data, length);
     auto header = GetSizePrefixedIOHeader(data);
     auto new_header = CreateIOHeaderDirect(
-        fbb, header->compression(), tableOffset, header->info_node()->c_str());
-    fbb.FinishSizePrefixed(new_header);
+        fbb, header->compression(), tableOffset, header->infoNode()->c_str());
+    FinishSizePrefixedIOHeaderBuffer(fbb, new_header);
     stream.seekp(14); // 14 bytes for version
     stream.write((char *)fbb.GetBufferPointer(), fbb.GetSize());
     stream.seekp(tableOffset);
@@ -142,15 +144,15 @@ R"""(<dv version="2.0">
     fbb.Clear();
     auto defBuilder = FileDataDefinitionBuilder(fbb);
     auto packetHeader = PacketHeader(0, eventCount);
-    defBuilder.add_packet_info(&packetHeader);
-    defBuilder.add_num_elements(1);
-    defBuilder.add_timestamp_start(timestampStart);
-    defBuilder.add_timestamp_end(timestampEnd);
+    defBuilder.add_PacketInfo(&packetHeader);
+    defBuilder.add_NumElements(1);
+    defBuilder.add_TimestampStart(timestampStart);
+    defBuilder.add_TimestampEnd(timestampEnd);
     auto dataDefinition = defBuilder.Finish();
     auto tables = std::vector{dataDefinition};
     auto tableVector = fbb.CreateVector(tables);
     auto dataTable = CreateFileDataTable(fbb, tableVector);
-    fbb.FinishSizePrefixed(dataTable);
+    FinishSizePrefixedFileDataTableBuffer(fbb, dataTable);
     auto [compressed, size] =
         compress_lz4((char *)fbb.GetBufferPointer(), fbb.GetSize());
     stream.write(compressed, size);
@@ -274,7 +276,7 @@ private:
       throw std::runtime_error("Only LZ4 compression is supported");
     }
 
-    const size_t data_table_position = ioheader->data_table_position();
+    const size_t data_table_position = ioheader->dataTablePosition();
     if (data_table_position < 0) {
       throw std::runtime_error(
           "AEDAT files without datatables are currently not supported");
@@ -364,18 +366,18 @@ private:
 
     // Record offsets of event packets
     // TODO: add IMU + frames
-    auto packets = root->table();
+    auto packets = root->Table();
     for (size_t i = 0; i < packets->size(); ++i) {
       auto definition = packets->Get(i);
-      if (definition->num_elements() == 0) {
+      if (definition->NumElements() == 0) {
         continue;
       }
-      const auto stream_id = definition->packet_info()->stream_id();
-      const size_t offset = definition->byte_offset();
+      const auto stream_id = definition->PacketInfo()->StreamID();
+      const size_t offset = definition->ByteOffset();
       switch (stream_id) {
       case 0: {
         event_packet_offsets.push_back(offset - 8); // Include 8 byte header
-        total_number_of_events += definition->num_elements();
+        total_number_of_events += definition->NumElements();
       }
       // case OutInfo::Type::FRME: {
       //   auto frame_packet = GetSizePrefixedFrame(&dst_buffer[0]);
