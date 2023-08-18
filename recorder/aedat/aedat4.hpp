@@ -114,7 +114,7 @@ R"""(<dv version="2.0">
     fbb.ForceDefaults(true);
     auto headerOffset =
         CreateIOHeaderDirect(fbb, CompressionType_LZ4, -1L, infoNode);
-    
+
     FinishSizePrefixedIOHeaderBuffer(fbb, headerOffset);
 
     stream.write(reinterpret_cast<char *>(fbb.GetBufferPointer()), static_cast<std::streamsize>(fbb.GetSize()));
@@ -157,6 +157,8 @@ R"""(<dv version="2.0">
         compress_lz4((char *)fbb.GetBufferPointer(), fbb.GetSize());
     stream.write(compressed, size);
     std::cout << "Table " << tableOffset << std::endl;
+    delete[] data;
+    delete[] compressed;
   }
 
   static void save_events(std::fstream &stream,
@@ -182,6 +184,7 @@ R"""(<dv version="2.0">
 
     // Write events
     stream.write(compressed, size);
+    delete[] compressed;
   }
 
   std::tuple<AER::Event *, size_t> read_events(const int64_t n_events = -1) {
