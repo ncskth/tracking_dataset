@@ -16,10 +16,8 @@ add_executable(event_counter event_counter.cpp)
 
 add_executable(data_converter data_converter.cpp)
 target_link_libraries(data_converter -llz4)
-
-find_package(h5cpp REQUIRED)
 target_link_libraries(data_converter -lhdf5_serial)
-target_link_libraries(data_converter h5cpp::h5cpp)
+target_include_directories(data_converter PRIVATE /usr/include/hdf5/serial/)
 
 add_executable(visualizer visualizer.cpp)
 target_link_libraries(visualizer -lSDL2)
