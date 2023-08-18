@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
     std::array<std::array<uint8_t, frame_length>, 0> init_frame;
     frame_file.setCompressionLevel(2);
     //chunking 10 frames
-    frame_file.writeDataset(init_frame, "frames", H5D_CHUNKED, {0, frame_length}, {1, frame_length});
+    frame_file.writeDataset(init_frame, "frames", H5D_CHUNKED, {0, frame_length}, {15, frame_length});
     // frame_file.appendToDataset(event_frame, "frames", 0);
 
     FILE *input_file = fopen(argv[1], "r");
@@ -238,6 +238,7 @@ int main(int argc, char **argv) {
                 if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
                 && t_adjusted <= frame_max_time - start_timestamp - FRAME_DELTA) {
                     frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
+                    frame_file.flush();
                     frame_index++;
                     last_event_frame_time = t_adjusted;
                 }
