@@ -1,6 +1,7 @@
 
 #include <thread>
 #include <time.h>
+#include <stdio.h>
 
 #include "libnatnet/NatNetTypes.h"
 #include "libnatnet/NatNetCAPI.h"

@@ -16,9 +16,9 @@
 
 #define PI 3.141525
 
-#define CAMERA_VERTICAL_FOV (80.0 * DEG_TO_RAD)
+#define CAMERA_VERTICAL_FOV (53.0 * DEG_TO_RAD)
 
-#define CAMERA_HORIZONTAL_FOV (145.0 * DEG_TO_RAD)
+#define CAMERA_HORIZONTAL_FOV (96 * DEG_TO_RAD)
 
 #define RAD_TO_DEG (180.0/PI)
 #define DEG_TO_RAD (PI/180.0)
@@ -70,12 +70,13 @@ void populate_id_to_polygons() {
     };
 
     // triangle
-    const double triangle_line_length = 0.29;
+    const double triangle_width = 0.29;
+    const double triangle_height =  triangle_width / 2 * tan(60 * DEG_TO_RAD);
     id_to_polygon[TRIANGLE0] = {
-        {-triangle_line_length / 2, 0, 0},
-        {triangle_line_length / 2, 0, triangle_line_length / 2},
-        {triangle_line_length / 2, 0, -triangle_line_length / 2},
-        {-triangle_line_length / 2, 0, 0}
+        {-triangle_height / 2, 0, 0},
+        {triangle_height / 2, 0, -triangle_width / 2},
+        {triangle_height / 2, 0, triangle_width / 2},
+        {-triangle_height / 2, 0, 0}
     };
 
     // circle

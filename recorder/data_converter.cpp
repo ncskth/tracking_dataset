@@ -7,6 +7,8 @@
 #include <chrono>
 #include <filesystem>
 #include <iomanip>
+#include <h5pp/h5pp.h>
+#include <thread>
 
 #include "aedat/aedat4.hpp"
 #include "protocol.h"
@@ -14,12 +16,19 @@
 
 #define CONVERTER_VERSION "1.0"
 
-#define SKIP_BEGINNING 5000000
+#define SKIP_BEGINNING 6000000
 
 #define MEAN_FROM_OPTITRACK_DELTAS 500
 
 #define EVENT_RANDOM_SAMPLING 1000
 #define MEAN_FROM_EVENT_DELTAS (300 * 5)
+
+#define FRAME_WIDTH 1280
+#define FRAME_HEIGHT 720
+
+#define FRAME_DELTA 1000
+
+#define SAVE_FRAMES_AFTER 8000000
 
 using json = nlohmann::json;
 
@@ -39,8 +48,41 @@ T interpolate(float start_time, T start_value, float end_time, T end_value, floa
     return (wanted_time - start_time) / (end_time - start_time) * (end_value - start_value) + start_value;
 }
 
-
 std::map<int, std::vector<optitrack_object>> optitrack_data; //we should be able to fit many many hours in memory
+
+
+const int frame_length = 720 * 1280 / 8;
+std::array<std::array<uint8_t, frame_length>, 1> event_frame;
+// std::array<uint8_t, frame_length> event_frame;
+uint64_t frame_index = 0;
+
+std::string optitrack_id_to_name(enum optitrack_ids id) {
+    switch (id) {
+        case CAMERA0:
+        case CAMERA1:
+        case CAMERA2:
+        case CAMERA3:
+        case CAMERA4:
+        case CAMERA5:
+        case CAMERA6:
+        case CAMERA7:
+        case CAMERA8:
+        case CAMERA9:
+            return std::string("camera");
+        case RECTANGLE0:
+            return std::string("rectangle");
+        case SQUARE0:
+            return std::string("square");
+        case CIRCLE0:
+            return std::string("circle");
+        case TRIANGLE0:
+            return std::string("triangle");
+        case CHECKERBOARD:
+            return std::string("checkerboard");
+        default:
+            return std::string("lol wut");
+    }
+}
 
 int main(int argc, char **argv) {
     if (argc != 3) {
@@ -51,6 +93,7 @@ int main(int argc, char **argv) {
     std::string metadata_output_path = std::string(argv[2]) + "/metadata.txt";
     std::string object_output_path = std::string(argv[2]) + "/positions.json";
     std::string event_output_path = std::string(argv[2]) + "/events.aedat4";
+    std::string frame_output_path = std::string(argv[2]) + "/frames.h5";
 
     std::fstream event_output;
     event_output.open(event_output_path, std::fstream::out | std::fstream::in | std::fstream::trunc |
@@ -62,6 +105,14 @@ int main(int argc, char **argv) {
     metadata_output.open(metadata_output_path, std::fstream::out |
                                     std::fstream::binary);
 
+    h5pp::File frame_file(frame_output_path, h5pp::FileAccess::REPLACE);
+
+    std::array<std::array<uint8_t, frame_length>, 0> init_frame;
+    frame_file.setCompressionLevel(2);
+    //chunking 10 frames
+    frame_file.writeDataset(init_frame, "frames", H5D_CHUNKED, {0, frame_length}, {1, frame_length});
+    // frame_file.appendToDataset(event_frame, "frames", 0);
+
     FILE *input_file = fopen(argv[1], "r");
 
     auto t = std::time(nullptr);
@@ -70,13 +121,16 @@ int main(int argc, char **argv) {
     metadata_output << "source file: " << argv[1] << std::endl;
     metadata_output << "version: " << CONVERTER_VERSION << std::endl;
 
+
+
     uint32_t first_pc_timestamp = 0;
     bool active = false;
     // do a first sweep to get timings and such
     std::vector<int> optitrack_deltas;
     std::vector<int> event_deltas;
-
-    // do a second sweep to output data
+    uint32_t optitrack_max_time = 0;
+    uint32_t event_max_time = 0;
+    // first sweep for time sync
     while (!feof(input_file)) {
         int id = fgetc(input_file);
         if (id == CAMERA_HEADER) {
@@ -91,6 +145,7 @@ int main(int argc, char **argv) {
                 if (rand() % EVENT_RANDOM_SAMPLING == 0 && event_deltas.size() < MEAN_FROM_OPTITRACK_DELTAS) {
                     event_deltas.push_back(entry.t - header.pc_t);
                 }
+                event_max_time = entry.t;
             }
         }
         else if (id == TIMESTAMP_HEADER) {
@@ -112,6 +167,7 @@ int main(int argc, char **argv) {
             if (optitrack_deltas.size() < MEAN_FROM_OPTITRACK_DELTAS) {
                 optitrack_deltas.push_back(header.t - header.pc_t);
             }
+            optitrack_max_time = header.t;
         }
         else {
             return -2;
@@ -124,6 +180,10 @@ int main(int argc, char **argv) {
     int optitrack_correction = optitrack_deltas.at(optitrack_deltas.size() / 2);
     int event_correction = event_deltas.at(event_deltas.size() / 2);
 
+    event_max_time = event_max_time - event_correction;
+    optitrack_max_time = optitrack_max_time - optitrack_correction;
+    uint32_t frame_max_time = std::min(event_max_time, optitrack_max_time);
+
     fseek(input_file, 0, SEEK_SET);
     active = false;
     uint32_t start_timestamp = 0;
@@ -133,6 +193,9 @@ int main(int argc, char **argv) {
     size_t event_count = 0;
 
     int aedat_header_offset = AEDAT4::save_header(event_output);
+    uint32_t last_event_frame_time;
+    uint32_t last_optitrack_frame_time;
+    // second sweep for data
     while (!feof(input_file)) {
         int id = fgetc(input_file);
         if (id == CAMERA_HEADER) {
@@ -146,7 +209,18 @@ int main(int argc, char **argv) {
                     continue;
                 }
                 uint32_t t_adjusted = entry.t - event_correction - start_timestamp;
-                // printf("t adjusted %d\n", t_adjusted);
+                int index = entry.x + entry.y * FRAME_WIDTH;
+                int byte = index / 8;
+                int bit = index % 8;
+                if (entry.p) {
+                    event_frame[0][byte] |= 1 << bit;
+                } else {
+                    event_frame[0][byte] &= ~(1 << bit);
+                }
+                uint32_t sum = 0;
+                for (int i = 0 ; i < sizeof(event_frame[0]); i++) {
+                    sum += event_frame[0][i];
+                }
                 AEDAT::PolarityEvent formal_event =  {
                     .timestamp = t_adjusted,
                     .x = entry.x,
@@ -160,6 +234,13 @@ int main(int argc, char **argv) {
                 event_count++;
                 last_event = t_adjusted;
                 events.push_back(formal_event);
+                //optitrack interpolation misses the last frame
+                if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
+                && t_adjusted <= frame_max_time - start_timestamp - FRAME_DELTA) {
+                    frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
+                    frame_index++;
+                    last_event_frame_time = t_adjusted;
+                }
             }
             AEDAT4::save_events(event_output, events);
         }
@@ -208,34 +289,39 @@ int main(int argc, char **argv) {
         std::string id = std::to_string(v.first);
         std::vector<optitrack_object> tracks = v.second;
         optitrack_object previous_object;
-        for (auto object : tracks) {
-            // std::map<std::string, float> object_map;
-            // object_map["t"] = object.t;
-            // object_map["x"] = object.x;
-            // object_map["y"] = object.y;
-            // object_map["z"] = object.z;
-            // object_map["qw"] = object.qw;
-            // object_map["qx"] = object.qx;
-            // object_map["qy"] = object.qy;
-            // object_map["qz"] = object.qz;
-            // optitrack_json["data"][id].push_back(object_map);
+        std::string name = optitrack_id_to_name((enum optitrack_ids) std::stoi(id));
+        std::vector<std::array<float, 7>> ahrs_vector;
 
+        for (auto object : tracks) {
             if (previous_object.t != 0) {
-                for (int i = previous_object.t / 1000; i < object.t / 1000; i++) {
+                for (int i = previous_object.t / FRAME_DELTA; i < object.t / FRAME_DELTA; i++) {
                     std::map<std::string, float> interp_map;
-                    interp_map["t"] = interpolate(previous_object.t, previous_object.t, object.t, object.t, i * 1000);
-                    interp_map["x"] = interpolate(previous_object.t, previous_object.x, object.t, object.x, i * 1000);
-                    interp_map["y"] = interpolate(previous_object.t, previous_object.y, object.t, object.y, i * 1000);
-                    interp_map["z"] = interpolate(previous_object.t, previous_object.z, object.t, object.z, i * 1000);
-                    interp_map["qw"] = interpolate(previous_object.t, previous_object.qw, object.t, object.qw, i * 1000);
-                    interp_map["qx"] = interpolate(previous_object.t, previous_object.qx, object.t, object.qx, i * 1000);
-                    interp_map["qy"] = interpolate(previous_object.t, previous_object.qy, object.t, object.qy, i * 1000);
-                    interp_map["qz"] = interpolate(previous_object.t, previous_object.qz, object.t, object.qz, i * 1000);
+                    interp_map["t"] = interpolate(previous_object.t, previous_object.t, object.t, object.t, i * FRAME_DELTA);
+                    interp_map["x"] = interpolate(previous_object.t, previous_object.x, object.t, object.x, i * FRAME_DELTA);
+                    interp_map["y"] = interpolate(previous_object.t, previous_object.y, object.t, object.y, i * FRAME_DELTA);
+                    interp_map["z"] = interpolate(previous_object.t, previous_object.z, object.t, object.z, i * FRAME_DELTA);
+                    interp_map["qw"] = interpolate(previous_object.t, previous_object.qw, object.t, object.qw, i * FRAME_DELTA);
+                    interp_map["qx"] = interpolate(previous_object.t, previous_object.qx, object.t, object.qx, i * FRAME_DELTA);
+                    interp_map["qy"] = interpolate(previous_object.t, previous_object.qy, object.t, object.qy, i * FRAME_DELTA);
+                    interp_map["qz"] = interpolate(previous_object.t, previous_object.qz, object.t, object.qz, i * FRAME_DELTA);
                     optitrack_json["data"][id].push_back(interp_map);
+                    last_optitrack_frame_time = i * FRAME_DELTA;
+
+                    if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA <= frame_max_time - start_timestamp) {
+                        std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
+                        ahrs_vector.push_back(ahrs);
+                        // last_optitrack_frame_time = i * FRAME_DELTA;
+                    }
                 }
             }
             previous_object = object;
         }
+        frame_file.writeDataset(ahrs_vector, name, {ahrs_vector.size(), 7});
     }
     object_output << optitrack_json;
+
+    // printf("times %d %d\n", last_event_frame_time, last_optitrack_frame_time);
+    if (last_event_frame_time != last_optitrack_frame_time) {
+        printf("Something is probably wrong with the frames\n");
+    }
 }
