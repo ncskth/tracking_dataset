@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
     h5pp::File frame_file(frame_output_path, h5pp::FileAccess::REPLACE);
 
     std::array<std::array<uint8_t, frame_length>, 0> init_frame;
-    frame_file.setCompressionLevel(3);
+    frame_file.setCompressionLevel(1);
     frame_file.writeDataset(init_frame, "frames", H5D_CHUNKED, {0, frame_length}, {15, frame_length});
     frame_file.appendToDataset(event_frame, "frames", 0);
 
@@ -319,7 +319,12 @@ int main(int argc, char **argv) {
     }
     object_output << optitrack_json;
 
-    // printf("times %d %d\n", last_event_frame_time, last_optitrack_frame_time);
+    printf("last_event_frame_time %u\n", last_event_frame_time);
+    printf("last_optitrack_frame_time %u\n", last_optitrack_frame_time);
+    printf("optitrack max time %u\n", optitrack_max_time);
+    printf("event max time %u\n", event_max_time);
+    printf("frame_max_time %u\n", frame_max_time);
+    printf("start_timestamp %u\n", start_timestamp);
     if (last_event_frame_time != last_optitrack_frame_time) {
         printf("Something is probably wrong with the frames\n");
     }
