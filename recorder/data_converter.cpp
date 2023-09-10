@@ -51,8 +51,8 @@ T interpolate(float start_time, T start_value, float end_time, T end_value, floa
 std::map<int, std::vector<optitrack_object>> optitrack_data; //we should be able to fit many many hours in memory
 
 
-const int frame_length = 720 * 1280 / 8;
-std::array<std::array<uint8_t, frame_length>, 1> event_frame;
+const int frame_length = 720 * 1280;
+std::array<std::array<uint16_t, frame_length>, 1> event_frame;
 // std::array<uint8_t, frame_length> event_frame;
 uint64_t frame_index = 0;
 
@@ -107,10 +107,10 @@ int main(int argc, char **argv) {
 
     h5pp::File frame_file(frame_output_path, h5pp::FileAccess::REPLACE);
 
-    std::array<std::array<uint8_t, frame_length>, 0> init_frame;
+    std::array<std::array<uint16_t, frame_length>, 0> init_frame;
     frame_file.setCompressionLevel(1);
-    frame_file.writeDataset(init_frame, "frames", H5D_CHUNKED, {0, frame_length}, {15, frame_length});
-    frame_file.appendToDataset(event_frame, "frames", 0);
+    frame_file.writeDataset(init_frame, "frames", H5D_CHUNKED, {0, frame_length}, {3, frame_length});
+    // frame_file.appendToDataset(event_frame, "frames", 0);
 
     FILE *input_file = fopen(argv[1], "r");
 
@@ -209,16 +209,10 @@ int main(int argc, char **argv) {
                 }
                 uint32_t t_adjusted = entry.t - event_correction - start_timestamp;
                 int index = entry.x + entry.y * FRAME_WIDTH;
-                int byte = index / 8;
-                int bit = index % 8;
                 if (entry.p) {
-                    event_frame[0][byte] |= 1 << bit;
+                    ((uint8_t*) &event_frame[0][index])[0]++;
                 } else {
-                    event_frame[0][byte] &= ~(1 << bit);
-                }
-                uint32_t sum = 0;
-                for (int i = 0 ; i < sizeof(event_frame[0]); i++) {
-                    sum += event_frame[0][i];
+                    ((uint8_t*) &event_frame[0][index])[1]++;
                 }
                 AEDAT::PolarityEvent formal_event =  {
                     .timestamp = t_adjusted,
@@ -239,6 +233,15 @@ int main(int argc, char **argv) {
                     frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
                     frame_index++;
                     last_event_frame_time = t_adjusted;
+                    // zero out frame
+                    int negative_events = 0;
+                    int positive_events = 0;
+                    for (int i = 0; i < frame_length; i++) {
+                        negative_events += (event_frame[0][i] & 0xff00) >> 8;
+                        positive_events += event_frame[0][i] & 0x00ff;
+                        event_frame[0][i] = 0;
+                    }
+                    // printf("events frame %d %d \n", positive_events, negative_events);
                 }
             }
             AEDAT4::save_events(event_output, events);
