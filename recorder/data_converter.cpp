@@ -9,6 +9,7 @@
 #include <iomanip>
 #include <h5pp/h5pp.h>
 #include <thread>
+#include <eigen3/Eigen/Geometry>
 
 #include "aedat/aedat4.hpp"
 #include "protocol.h"
@@ -285,42 +286,122 @@ int main(int argc, char **argv) {
     event_output.flush();
     event_output.close();
 
+    // json optitrack_json;
+
+    // for (auto v : optitrack_data) {
+    //     std::string id = std::to_string(v.first);
+    //     std::vector<optitrack_object> tracks = v.second;
+    //     optitrack_object previous_object;
+    //     std::string name = optitrack_id_to_name((enum optitrack_ids) std::stoi(id));
+    //     std::vector<std::array<float, 7>> ahrs_vector;
+
+    //     for (auto object : tracks) {
+    //             for (int i = previous_object.t / FRAME_DELTA; i < object.t / FRAME_DELTA; i++) {
+    //                 std::map<std::string, float> interp_map;
+    //                 interp_map["t"] = interpolate(previous_object.t, previous_object.t, object.t, object.t, i * FRAME_DELTA);
+    //                 interp_map["x"] = interpolate(previous_object.t, previous_object.x, object.t, object.x, i * FRAME_DELTA);
+    //                 interp_map["y"] = interpolate(previous_object.t, previous_object.y, object.t, object.y, i * FRAME_DELTA);
+    //                 interp_map["z"] = interpolate(previous_object.t, previous_object.z, object.t, object.z, i * FRAME_DELTA);
+    //                 interp_map["qw"] = interpolate(previous_object.t, previous_object.qw, object.t, object.qw, i * FRAME_DELTA);
+    //                 interp_map["qx"] = interpolate(previous_object.t, previous_object.qx, object.t, object.qx, i * FRAME_DELTA);
+    //                 interp_map["qy"] = interpolate(previous_object.t, previous_object.qy, object.t, object.qy, i * FRAME_DELTA);
+    //                 interp_map["qz"] = interpolate(previous_object.t, previous_object.qz, object.t, object.qz, i * FRAME_DELTA);
+    //                 optitrack_json["data"][id].push_back(interp_map);
+
+    //                 if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA <= frame_max_time - start_timestamp) {
+    //                     std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
+    //                     ahrs_vector.push_back(ahrs);
+    //                     last_optitrack_frame_time = i * FRAME_DELTA;
+    //                 }
+    //             }
+    //         }
+    //         previous_object = object;
+    //     }
+    //     frame_file.writeDataset(ahrs_vector, name, {ahrs_vector.size(), 7});
+    // }
+    // object_output << optitrack_json;
+
+
+    std::map<std::string, std::vector<std::array<float, 7>>> ahrs_matrix;
+
+
     json optitrack_json;
+    int optitrack_track_count = (*optitrack_data.begin()).second.size();
+    for (int row = 1; row < optitrack_track_count; row++) {
+        Eigen::Vector3<double> future_camera_pos;
+        Eigen::Quaternion<double> future_camera_q;
+        Eigen::Vector3<double> old_camera_pos;
+        Eigen::Quaternion<double> old_camera_q;
 
-    for (auto v : optitrack_data) {
-        std::string id = std::to_string(v.first);
-        std::vector<optitrack_object> tracks = v.second;
-        optitrack_object previous_object;
-        std::string name = optitrack_id_to_name((enum optitrack_ids) std::stoi(id));
-        std::vector<std::array<float, 7>> ahrs_vector;
+        for (auto column : optitrack_data) {
+            if (column.first != CAMERA0) {
+                continue;
+            }
+            future_camera_pos = {column.second[row].x, column.second[row].y, column.second[row].z};
+            future_camera_q = {column.second[row].qx, column.second[row].qy, column.second[row].qz, column.second[row].qw};
+            old_camera_pos = {column.second[row - 1].x, column.second[row - 1].y, column.second[row - 1].z};
+            old_camera_q = {column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz, column.second[row - 1].qw};
+        }
 
-        for (auto object : tracks) {
-            if (previous_object.t != 0) {
-                for (int i = previous_object.t / FRAME_DELTA; i < object.t / FRAME_DELTA; i++) {
-                    std::map<std::string, float> interp_map;
-                    interp_map["t"] = interpolate(previous_object.t, previous_object.t, object.t, object.t, i * FRAME_DELTA);
-                    interp_map["x"] = interpolate(previous_object.t, previous_object.x, object.t, object.x, i * FRAME_DELTA);
-                    interp_map["y"] = interpolate(previous_object.t, previous_object.y, object.t, object.y, i * FRAME_DELTA);
-                    interp_map["z"] = interpolate(previous_object.t, previous_object.z, object.t, object.z, i * FRAME_DELTA);
-                    interp_map["qw"] = interpolate(previous_object.t, previous_object.qw, object.t, object.qw, i * FRAME_DELTA);
-                    interp_map["qx"] = interpolate(previous_object.t, previous_object.qx, object.t, object.qx, i * FRAME_DELTA);
-                    interp_map["qy"] = interpolate(previous_object.t, previous_object.qy, object.t, object.qy, i * FRAME_DELTA);
-                    interp_map["qz"] = interpolate(previous_object.t, previous_object.qz, object.t, object.qz, i * FRAME_DELTA);
-                    optitrack_json["data"][id].push_back(interp_map);
+        for (auto column : optitrack_data) {
+            if (column.first == CAMERA0) {
+                continue;
+            }
+            Eigen::Vector3<double> future_object_pos = {column.second[row].x, column.second[row].y, column.second[row].z};
+            Eigen::Quaternion<double> future_object_q = {column.second[row].qx, column.second[row].qy, column.second[row].qz, column.second[row].qw};
+            int t_future = column.second[row].t;
+            Eigen::Vector3<double> old_object_pos = {column.second[row - 1].x, column.second[row - 1].y, column.second[row - 1].z};
+            Eigen::Quaternion<double> old_object_q = {column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz, column.second[row - 1].qw};
+            int t_old = column.second[row - 1].t;
+            std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
+
+            for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
+                int t_interp = t_future;
+                Eigen::Vector3<double> interp_camera_pos = interpolate(t_old, old_camera_pos, t_future, future_camera_pos, t_interp);
+                // Eigen::Quaternion<double> interp_camera_q = interpolate(t_old, old_camera_q, t_future, future_camera_q, t_interp);
+                Eigen::Quaternion<double> interp_camera_q = {
+                    interpolate(t_old, old_camera_q.w(), t_future, future_camera_q.w(), t_interp),
+                    interpolate(t_old, old_camera_q.x(), t_future, future_camera_q.x(), t_interp),
+                    interpolate(t_old, old_camera_q.y(), t_future, future_camera_q.y(), t_interp),
+                    interpolate(t_old, old_camera_q.z(), t_future, future_camera_q.z(), t_interp),
+                };
+
+                Eigen::Vector3<double> interp_object_pos = interpolate(t_old, old_object_pos, t_future, future_object_pos, t_interp);
+                Eigen::Quaternion<double> interp_object_q =  {
+                    interpolate(t_old, old_object_q.w(), t_future, future_object_q.w(), t_interp),
+                    interpolate(t_old, old_object_q.x(), t_future, future_object_q.x(), t_interp),
+                    interpolate(t_old, old_object_q.y(), t_future, future_object_q.y(), t_interp),
+                    interpolate(t_old, old_object_q.z(), t_future, future_object_q.z(), t_interp),
+                };
+
+                Eigen::Vector3<double> object_relative_pos = interp_camera_q.inverse() * (interp_object_pos - interp_camera_pos);
+                Eigen::Quaternion<double> object_relative_q = interp_camera_q.inverse() * interp_object_q;
+
+
+                std::map<std::string, float> interp_map;
+                interp_map["t"] = t_interp;
+                interp_map["x"] = object_relative_pos[0];
+                interp_map["y"] = object_relative_pos[1];
+                interp_map["z"] = object_relative_pos[2];
+                interp_map["qw"] = object_relative_q.w();
+                interp_map["qx"] = object_relative_q.x();
+                interp_map["qy"] = object_relative_q.y();
+                interp_map["qz"] = object_relative_q.z();
+                optitrack_json["data"][name].push_back(interp_map);
+
+                if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA <= frame_max_time - start_timestamp) {
+                    std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
+                    ahrs_matrix[name].push_back(ahrs);
                     last_optitrack_frame_time = i * FRAME_DELTA;
-
-                    if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA <= frame_max_time - start_timestamp) {
-                        std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
-                        ahrs_vector.push_back(ahrs);
-                        // last_optitrack_frame_time = i * FRAME_DELTA;
-                    }
                 }
             }
-            previous_object = object;
         }
-        frame_file.writeDataset(ahrs_vector, name, {ahrs_vector.size(), 7});
     }
     object_output << optitrack_json;
+
+    for (auto v : ahrs_matrix) {
+        frame_file.writeDataset(v.second, v.first, {v.second.size(), 7});
+    }
 
     printf("last_event_frame_time %u\n", last_event_frame_time);
     printf("last_optitrack_frame_time %u\n", last_optitrack_frame_time);
@@ -328,7 +409,7 @@ int main(int argc, char **argv) {
     printf("event max time %u\n", event_max_time);
     printf("frame_max_time %u\n", frame_max_time);
     printf("start_timestamp %u\n", start_timestamp);
-    if (last_event_frame_time != last_optitrack_frame_time) {
+    if (last_event_frame_time / 1000 != last_optitrack_frame_time / 1000) {
         printf("Something is probably wrong with the frames\n");
     }
 }
