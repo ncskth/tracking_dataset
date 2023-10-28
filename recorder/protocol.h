@@ -17,6 +17,8 @@ enum optitrack_ids {
     SQUARE0 = 12,
     CIRCLE0 = 13,
     TRIANGLE0 = 14,
+    PLIER0 = 15,
+    HAMMER0 = 16,
     TEST_POINT = 128,
     CHECKERBOARD = 129
 };

@@ -27,9 +27,22 @@
 #define FRAME_WIDTH 1280
 #define FRAME_HEIGHT 720
 
+#define PI 3.141525
+#define RAD_TO_DEG (180.0/PI)
+#define DEG_TO_RAD (PI/180.0)
+
 #define FRAME_DELTA 1000
 
 #define SAVE_FRAMES_AFTER 8000000
+
+#define CAMERA_VERTICAL_FOV (53.0 * DEG_TO_RAD)
+#define CAMERA_HORIZONTAL_FOV (90.0 * DEG_TO_RAD)
+
+#define UNDISTORT_K1 -0.3344015
+#define UNDISTORT_K2 0.1542642
+#define UNDISTORT_K3 0
+
+#define DEG_TO_RAD (PI/180.0)
 
 using json = nlohmann::json;
 
@@ -43,6 +56,30 @@ struct optitrack_object {
     float qy;
     float qz;
 };
+
+Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
+    Eigen::Vector2<double> out;
+    out[0] = atan2(pos.x(), -pos.z()) / (CAMERA_HORIZONTAL_FOV / 2) * FRAME_WIDTH + FRAME_WIDTH / 2;
+    out[1] = -atan2(pos.y(), -pos.z()) / (CAMERA_VERTICAL_FOV / 2) * FRAME_HEIGHT + FRAME_HEIGHT / 2;
+    return out;
+}
+
+Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
+    Eigen::Vector2<double> out;
+    pixel[0] -= FRAME_WIDTH / 2;
+    pixel[1] -= FRAME_HEIGHT / 2;
+    double r = sqrt(pow(pixel[0], 2) + pow(pixel[1], 2));
+    // r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2));
+    r /= sqrt(pow(FRAME_WIDTH, 2) + pow(FRAME_HEIGHT, 2) / 2);
+    // r /= WINDOW_WIDTH / 2;
+    // r = 0;
+    double correction = 1 + UNDISTORT_K1 * pow(r, 2) + UNDISTORT_K2 * pow(r, 4) + UNDISTORT_K3 * pow(r, 6);
+    out[0] = pixel[0] / correction;
+    out[1] = pixel[1] / correction;
+    out[0] += FRAME_WIDTH / 2;
+    out[1] += FRAME_HEIGHT / 2;
+    return out;
+}
 
 template <typename T>
 T interpolate(float start_time, T start_value, float end_time, T end_value, float wanted_time) {
@@ -80,6 +117,10 @@ std::string optitrack_id_to_name(enum optitrack_ids id) {
             return std::string("triangle");
         case CHECKERBOARD:
             return std::string("checkerboard");
+        case PLIER0:
+            return std::string("plier");
+        case HAMMER0:
+            return std::string("hammer");
         default:
             return std::string("lol wut");
     }
@@ -286,43 +327,7 @@ int main(int argc, char **argv) {
     event_output.flush();
     event_output.close();
 
-    // json optitrack_json;
-
-    // for (auto v : optitrack_data) {
-    //     std::string id = std::to_string(v.first);
-    //     std::vector<optitrack_object> tracks = v.second;
-    //     optitrack_object previous_object;
-    //     std::string name = optitrack_id_to_name((enum optitrack_ids) std::stoi(id));
-    //     std::vector<std::array<float, 7>> ahrs_vector;
-
-    //     for (auto object : tracks) {
-    //             for (int i = previous_object.t / FRAME_DELTA; i < object.t / FRAME_DELTA; i++) {
-    //                 std::map<std::string, float> interp_map;
-    //                 interp_map["t"] = interpolate(previous_object.t, previous_object.t, object.t, object.t, i * FRAME_DELTA);
-    //                 interp_map["x"] = interpolate(previous_object.t, previous_object.x, object.t, object.x, i * FRAME_DELTA);
-    //                 interp_map["y"] = interpolate(previous_object.t, previous_object.y, object.t, object.y, i * FRAME_DELTA);
-    //                 interp_map["z"] = interpolate(previous_object.t, previous_object.z, object.t, object.z, i * FRAME_DELTA);
-    //                 interp_map["qw"] = interpolate(previous_object.t, previous_object.qw, object.t, object.qw, i * FRAME_DELTA);
-    //                 interp_map["qx"] = interpolate(previous_object.t, previous_object.qx, object.t, object.qx, i * FRAME_DELTA);
-    //                 interp_map["qy"] = interpolate(previous_object.t, previous_object.qy, object.t, object.qy, i * FRAME_DELTA);
-    //                 interp_map["qz"] = interpolate(previous_object.t, previous_object.qz, object.t, object.qz, i * FRAME_DELTA);
-    //                 optitrack_json["data"][id].push_back(interp_map);
-
-    //                 if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA <= frame_max_time - start_timestamp) {
-    //                     std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
-    //                     ahrs_vector.push_back(ahrs);
-    //                     last_optitrack_frame_time = i * FRAME_DELTA;
-    //                 }
-    //             }
-    //         }
-    //         previous_object = object;
-    //     }
-    //     frame_file.writeDataset(ahrs_vector, name, {ahrs_vector.size(), 7});
-    // }
-    // object_output << optitrack_json;
-
-
-    std::map<std::string, std::vector<std::array<float, 7>>> ahrs_matrix;
+    std::map<std::string, std::vector<std::array<float, 9>>> ahrs_matrix;
 
 
     json optitrack_json;
@@ -377,9 +382,12 @@ int main(int argc, char **argv) {
                 Eigen::Vector3<double> object_relative_pos = interp_camera_q.inverse() * (interp_object_pos - interp_camera_pos);
                 Eigen::Quaternion<double> object_relative_q = interp_camera_q.inverse() * interp_object_q;
 
-
+                Eigen::Vector2<double> pixel = position_to_pixel(object_relative_pos);
+                pixel = undistort_pixel(pixel);
                 std::map<std::string, float> interp_map;
                 interp_map["t"] = t_interp;
+                interp_map["cx"] = pixel.x();
+                interp_map["cy"] = pixel.y();
                 interp_map["x"] = object_relative_pos[0];
                 interp_map["y"] = object_relative_pos[1];
                 interp_map["z"] = object_relative_pos[2];
@@ -390,7 +398,7 @@ int main(int argc, char **argv) {
                 optitrack_json["data"][name].push_back(interp_map);
 
                 if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA <= frame_max_time - start_timestamp) {
-                    std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
+                    std::array<float, 9> ahrs {interp_map["cx"], interp_map["cy"], interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
                     ahrs_matrix[name].push_back(ahrs);
                     last_optitrack_frame_time = i * FRAME_DELTA;
                 }
@@ -400,15 +408,15 @@ int main(int argc, char **argv) {
     object_output << optitrack_json;
 
     for (auto v : ahrs_matrix) {
-        frame_file.writeDataset(v.second, v.first, {v.second.size(), 7});
+        frame_file.writeDataset(v.second, v.first, {v.second.size(), 9});
     }
 
-    printf("last_event_frame_time %u\n", last_event_frame_time);
-    printf("last_optitrack_frame_time %u\n", last_optitrack_frame_time);
-    printf("optitrack max time %u\n", optitrack_max_time);
-    printf("event max time %u\n", event_max_time);
-    printf("frame_max_time %u\n", frame_max_time);
-    printf("start_timestamp %u\n", start_timestamp);
+    // printf("last_event_frame_time %u\n", last_event_frame_time);
+    // printf("last_optitrack_frame_time %u\n", last_optitrack_frame_time);
+    // printf("optitrack max time %u\n", optitrack_max_time);
+    // printf("event max time %u\n", event_max_time);
+    // printf("frame_max_time %u\n", frame_max_time);
+    // printf("start_timestamp %u\n", start_timestamp);
     if (last_event_frame_time / 1000 != last_optitrack_frame_time / 1000) {
         printf("Something is probably wrong with the frames\n");
     }
