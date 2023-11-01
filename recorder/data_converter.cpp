@@ -120,6 +120,7 @@ std::string optitrack_id_to_name(enum optitrack_ids id) {
         case PLIER0:
             return std::string("plier");
         case HAMMER0:
+        case HAMMER1:
             return std::string("hammer");
         default:
             return std::string("lol wut");

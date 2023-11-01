@@ -99,6 +99,13 @@ void populate_id_to_polygons() {
         {0, 0, 0.155},
         {-0.04, 0, 0.155},
     };
+    id_to_polygon[HAMMER1] = {
+        {0, 0, -0.10},
+        {0, 0, 0.155},
+        {0.04, 0, 0.12},
+        {0, 0, 0.155},
+        {-0.04, 0, 0.155},
+    };
 
     // circle
     const double circle_radius = 0.29/2;
