@@ -344,9 +344,9 @@ int main(int argc, char **argv) {
                 continue;
             }
             future_camera_pos = {column.second[row].x, column.second[row].y, column.second[row].z};
-            future_camera_q = {column.second[row].qx, column.second[row].qy, column.second[row].qz, column.second[row].qw};
+            future_camera_q = {column.second[row].qw, column.second[row].qx, column.second[row].qy, column.second[row].qz};
             old_camera_pos = {column.second[row - 1].x, column.second[row - 1].y, column.second[row - 1].z};
-            old_camera_q = {column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz, column.second[row - 1].qw};
+            old_camera_q = {column.second[row - 1].qw, column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz};
         }
 
         for (auto column : optitrack_data) {
@@ -354,17 +354,16 @@ int main(int argc, char **argv) {
                 continue;
             }
             Eigen::Vector3<double> future_object_pos = {column.second[row].x, column.second[row].y, column.second[row].z};
-            Eigen::Quaternion<double> future_object_q = {column.second[row].qx, column.second[row].qy, column.second[row].qz, column.second[row].qw};
+            Eigen::Quaternion<double> future_object_q = {column.second[row].qw, column.second[row].qx, column.second[row].qy, column.second[row].qz};
             int t_future = column.second[row].t;
             Eigen::Vector3<double> old_object_pos = {column.second[row - 1].x, column.second[row - 1].y, column.second[row - 1].z};
-            Eigen::Quaternion<double> old_object_q = {column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz, column.second[row - 1].qw};
+            Eigen::Quaternion<double> old_object_q = {column.second[row - 1].qw, column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz};
             int t_old = column.second[row - 1].t;
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
             for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
                 int t_interp = t_future;
                 Eigen::Vector3<double> interp_camera_pos = interpolate(t_old, old_camera_pos, t_future, future_camera_pos, t_interp);
-                // Eigen::Quaternion<double> interp_camera_q = interpolate(t_old, old_camera_q, t_future, future_camera_q, t_interp);
                 Eigen::Quaternion<double> interp_camera_q = {
                     interpolate(t_old, old_camera_q.w(), t_future, future_camera_q.w(), t_interp),
                     interpolate(t_old, old_camera_q.x(), t_future, future_camera_q.x(), t_interp),
@@ -384,7 +383,7 @@ int main(int argc, char **argv) {
                 Eigen::Quaternion<double> object_relative_q = interp_camera_q.inverse() * interp_object_q;
 
                 Eigen::Vector2<double> pixel = position_to_pixel(object_relative_pos);
-                pixel = undistort_pixel(pixel);
+                // pixel = undistort_pixel(pixel);
                 std::map<std::string, float> interp_map;
                 interp_map["t"] = t_interp;
                 interp_map["cx"] = pixel.x();

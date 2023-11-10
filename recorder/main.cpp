@@ -22,12 +22,18 @@
 
 std::atomic<int> max_queue_size = 0;
 
+
+uint32_t initial_timestamp = 0;
 void init_timestamper(flow_struct & flow) {
     struct timespec time;
     struct timestamp_header entry;
     while (true) {
         clock_gettime(CLOCK_MONOTONIC, &time);
         uint32_t t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
+        if (t == 0) {
+            initial_timestamp = t;
+        }
+        t -= initial_timestamp;
         entry.pc_t = t;
         struct size_buf data;
         data.size = sizeof(entry) + 1;
