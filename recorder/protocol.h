@@ -21,6 +21,7 @@ enum optitrack_ids {
     HAMMER0 = 16,
     HAMMER1 = 17,
     HAMMER_NEW = 18,
+    HAMMER_NEW_NEW = 19,
     TEST_POINT = 128,
     CHECKERBOARD = 129
 };
