@@ -35,11 +35,11 @@
 
 #define SAVE_FRAMES_AFTER 8000000
 
-#define CAMERA_VERTICAL_FOV (53.0 * DEG_TO_RAD)
-#define CAMERA_HORIZONTAL_FOV (90.0 * DEG_TO_RAD)
+#define CAMERA_VERTICAL_FOV (46.0 * DEG_TO_RAD)
+#define CAMERA_HORIZONTAL_FOV (80.0 * DEG_TO_RAD)
 
-#define UNDISTORT_K1 -0.3344015
-#define UNDISTORT_K2 0.1542642
+#define UNDISTORT_K1 0
+#define UNDISTORT_K2 0
 #define UNDISTORT_K3 0
 
 #define DEG_TO_RAD (PI/180.0)
@@ -121,6 +121,7 @@ std::string optitrack_id_to_name(enum optitrack_ids id) {
             return std::string("plier");
         case HAMMER0:
         case HAMMER1:
+        case HAMMER_NEW:
             return std::string("hammer");
         default:
             return std::string("lol wut");
