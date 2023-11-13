@@ -17,7 +17,7 @@
 
 #define CONVERTER_VERSION "1.0"
 
-#define SKIP_BEGINNING 6000000
+#define SKIP_BEGINNING 15000000
 
 #define MEAN_FROM_OPTITRACK_DELTAS 500
 
@@ -33,7 +33,7 @@
 
 #define FRAME_DELTA 1000
 
-#define SAVE_FRAMES_AFTER 8000000
+#define SAVE_FRAMES_AFTER 12000000
 
 #define CAMERA_VERTICAL_FOV (46.0 * DEG_TO_RAD)
 #define CAMERA_HORIZONTAL_FOV (80.0 * DEG_TO_RAD)
@@ -165,8 +165,6 @@ int main(int argc, char **argv) {
     metadata_output << "source file: " << argv[1] << std::endl;
     metadata_output << "version: " << CONVERTER_VERSION << std::endl;
 
-
-
     uint32_t first_pc_timestamp = 0;
     bool active = false;
     // do a first sweep to get timings and such
@@ -195,16 +193,19 @@ int main(int argc, char **argv) {
         else if (id == TIMESTAMP_HEADER) {
             struct timestamp_header header;
             fread(&header, 1, sizeof(header), input_file);
+            //ignore this for now...
+        }
+        else if (id == OPTITRACK_HEADER) {
+            struct optitrack_header header;
+            fread(&header, 1, sizeof(header), input_file);
+
             if (first_pc_timestamp = 0) {
                 first_pc_timestamp = header.pc_t;
             }
             if (header.pc_t - first_pc_timestamp > SKIP_BEGINNING) {
                 active = true;
             }
-        }
-        else if (id == OPTITRACK_HEADER) {
-            struct optitrack_header header;
-            fread(&header, 1, sizeof(header), input_file);
+
             if (not active) {
                 continue;
             }
@@ -221,7 +222,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    int optitrack_correction = optitrack_deltas.at(optitrack_deltas.size() / 2);
+    int optitrack_correction = optitrack_deltas.at(optitrack_deltas.size() / 2); // TODO this needs to be sorted lol. christ
     int event_correction = event_deltas.at(event_deltas.size() / 2);
 
     event_max_time = event_max_time - event_correction;
@@ -253,6 +254,8 @@ int main(int argc, char **argv) {
                     continue;
                 }
                 uint32_t t_adjusted = entry.t - event_correction - start_timestamp;
+                // printf(" %lld %lld %lld\n", entry.t, event_correction, start_timestamp);
+
                 int index = entry.x + entry.y * FRAME_WIDTH;
                 if (entry.p) {
                     ((uint8_t*) &event_frame[0][index])[0]++;
@@ -274,8 +277,9 @@ int main(int argc, char **argv) {
                 events.push_back(formal_event);
                 //optitrack interpolation misses the last frame
                 if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
-                && t_adjusted <= frame_max_time - start_timestamp - FRAME_DELTA) {
+                && t_adjusted < frame_max_time - start_timestamp) {
                     frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
+                    // printf("Saved %d\n", t_adjusted);
                     frame_index++;
                     last_event_frame_time = t_adjusted;
                     // zero out frame
@@ -294,6 +298,12 @@ int main(int argc, char **argv) {
         else if (id == TIMESTAMP_HEADER) {
             struct timestamp_header header;
             fread(&header, 1, sizeof(header), input_file);
+            // skip this for now
+        }
+        else if (id == OPTITRACK_HEADER) {
+            struct optitrack_header header;
+            fread(&header, 1, sizeof(header), input_file);
+
             if (first_pc_timestamp == 0) {
                 first_pc_timestamp = header.pc_t;
             }
@@ -301,10 +311,7 @@ int main(int argc, char **argv) {
                 start_timestamp = header.pc_t - SKIP_BEGINNING;
                 active = true;
             }
-        }
-        else if (id == OPTITRACK_HEADER) {
-            struct optitrack_header header;
-            fread(&header, 1, sizeof(header), input_file);
+
             if (not active) {
                 continue;
             }
@@ -413,12 +420,13 @@ int main(int argc, char **argv) {
         frame_file.writeDataset(v.second, v.first, {v.second.size(), 9});
     }
 
-    // printf("last_event_frame_time %u\n", last_event_frame_time);
-    // printf("last_optitrack_frame_time %u\n", last_optitrack_frame_time);
-    // printf("optitrack max time %u\n", optitrack_max_time);
-    // printf("event max time %u\n", event_max_time);
-    // printf("frame_max_time %u\n", frame_max_time);
-    // printf("start_timestamp %u\n", start_timestamp);
+
+    printf("last_event_frame_time %u\n", last_event_frame_time);
+    printf("last_optitrack_frame_time %u\n", last_optitrack_frame_time);
+    printf("optitrack max time %u\n", optitrack_max_time);
+    printf("event max time %u\n", event_max_time);
+    printf("frame_max_time %u\n", frame_max_time);
+    printf("start_timestamp %u\n", start_timestamp);
     if (last_event_frame_time / 1000 != last_optitrack_frame_time / 1000) {
         printf("Something is probably wrong with the frames\n");
     }
