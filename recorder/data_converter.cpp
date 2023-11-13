@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
                 //optitrack interpolation misses the last frame
                 if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
                 && t_adjusted < frame_max_time - start_timestamp) {
-                    // frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
+                    frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
                     // printf("Saved %d\n", t_adjusted);
                     frame_index++;
                     last_event_frame_time = t_adjusted;
