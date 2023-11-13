@@ -17,7 +17,7 @@
 
 #define CONVERTER_VERSION "1.0"
 
-#define SKIP_BEGINNING 15000000
+#define SKIP_BEGINNING 10000000
 
 #define MEAN_FROM_OPTITRACK_DELTAS 500
 
@@ -33,7 +33,7 @@
 
 #define FRAME_DELTA 1000
 
-#define SAVE_FRAMES_AFTER 12000000
+#define SAVE_FRAMES_AFTER 18000000
 
 #define CAMERA_VERTICAL_FOV (46.0 * DEG_TO_RAD)
 #define CAMERA_HORIZONTAL_FOV (80.0 * DEG_TO_RAD)
@@ -278,7 +278,7 @@ int main(int argc, char **argv) {
                 //optitrack interpolation misses the last frame
                 if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
                 && t_adjusted < frame_max_time - start_timestamp) {
-                    frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
+                    // frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
                     // printf("Saved %d\n", t_adjusted);
                     frame_index++;
                     last_event_frame_time = t_adjusted;
