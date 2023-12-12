@@ -14,6 +14,7 @@
 #include "aedat/aedat4.hpp"
 #include "protocol.h"
 #include "aedat/aer.hpp"
+#include "camera_stuff.h"
 
 #define CONVERTER_VERSION "1.0"
 
@@ -27,22 +28,9 @@
 #define FRAME_WIDTH 1280
 #define FRAME_HEIGHT 720
 
-#define PI 3.141525
-#define RAD_TO_DEG (180.0/PI)
-#define DEG_TO_RAD (PI/180.0)
-
 #define FRAME_DELTA 1000
 
 #define SAVE_FRAMES_AFTER 18000000
-
-#define CAMERA_VERTICAL_FOV (46.0 * DEG_TO_RAD)
-#define CAMERA_HORIZONTAL_FOV (80.0 * DEG_TO_RAD)
-
-#define UNDISTORT_K1 -0.07377374561760958
-#define UNDISTORT_K2 0.3134840895065068
-#define UNDISTORT_K3 0
-
-#define DEG_TO_RAD (PI/180.0)
 
 using json = nlohmann::json;
 
@@ -56,30 +44,6 @@ struct optitrack_object {
     float qy;
     float qz;
 };
-
-Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
-    Eigen::Vector2<double> out;
-    out[0] = atan2(pos.x(), -pos.z()) / (CAMERA_HORIZONTAL_FOV / 2) * FRAME_WIDTH + FRAME_WIDTH / 2;
-    out[1] = -atan2(pos.y(), -pos.z()) / (CAMERA_VERTICAL_FOV / 2) * FRAME_HEIGHT + FRAME_HEIGHT / 2;
-    return out;
-}
-
-Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
-    Eigen::Vector2<double> out;
-    pixel[0] -= FRAME_WIDTH / 2;
-    pixel[1] -= FRAME_HEIGHT / 2;
-    double r = sqrt(pow(pixel[0], 2) + pow(pixel[1], 2));
-    // r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2));
-    r /= sqrt(pow(FRAME_WIDTH, 2) + pow(FRAME_HEIGHT, 2) / 2);
-    // r /= WINDOW_WIDTH / 2;
-    // r = 0;
-    double correction = 1 + UNDISTORT_K1 * pow(r, 2) + UNDISTORT_K2 * pow(r, 4) + UNDISTORT_K3 * pow(r, 6);
-    out[0] = pixel[0] / correction;
-    out[1] = pixel[1] / correction;
-    out[0] += FRAME_WIDTH / 2;
-    out[1] += FRAME_HEIGHT / 2;
-    return out;
-}
 
 template <typename T>
 T interpolate(float start_time, T start_value, float end_time, T end_value, float wanted_time) {

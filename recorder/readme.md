@@ -15,9 +15,7 @@ The only package that has any data is the camera so far. It is followed by `head
 
 ## Building
 
-Building this is a bit of a mess.
-
-libNatNet for the optitrack system I have just included as a binary together with its headers so nothing needs to be done there. Metavision (or just [OpenEB](https://github.com/prophesee-ai/openeb) is enough) for the camera needs to be installed separately by the user.
+libNatNet for the optitrack system I have just included as a binary together with its headers so nothing needs to be done there. Metavision (or just [OpenEB](https://github.com/prophesee-ai/openeb) is enough) for the camera needs to be installed separately by the user. [H5pp](https://github.com/DavidAce/h5pp/releases) is required. V1.10 is available as a `.deb` package.
 
 To build
 ```
@@ -33,3 +31,7 @@ to run
 ```
 
 pro tip: mount a ramfs
+
+
+## HDF5 format
+The frames are encoded as a 1-dimensional array using single bits to represent pixels.

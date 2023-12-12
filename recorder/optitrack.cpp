@@ -14,11 +14,18 @@ static const ConnectionType kDefaultConnectionType = ConnectionType_Multicast;
 
 NatNetClient* g_pClient = NULL;
 
+double optitrack_start_time = 0;
+std::map<int, tracked_object> tracked_objects;
 
 void NATNET_CALLCONV DataHandler(sFrameOfMocapData* track, void* pUserData)
 {
     struct flow_struct *flow = (struct flow_struct *) pUserData;
     double timestamp = track->fTimestamp;
+    if (optitrack_start_time == 0) {
+        optitrack_start_time = timestamp;
+    }
+    timestamp -= optitrack_start_time;
+
     struct timespec time;
     clock_gettime(CLOCK_MONOTONIC, &time);
     uint32_t pc_t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
@@ -44,6 +51,12 @@ void NATNET_CALLCONV DataHandler(sFrameOfMocapData* track, void* pUserData)
         offset += 1;
         memcpy(data.buf + offset, &entry, sizeof(entry));
         offset += sizeof(entry);
+
+        struct tracked_object object;
+        object.attitude = {track->RigidBodies[i].qw, track->RigidBodies[i].qx, track->RigidBodies[i].qy, track->RigidBodies[i].qz};
+        object.position = {track->RigidBodies[i].x, track->RigidBodies[i].y, track->RigidBodies[i].z};
+        object.id = track->RigidBodies[i].ID;
+        tracked_objects[object.id] = object;
 	}
     data.size = offset;
     std::unique_lock lock{flow->queue_mutex, std::defer_lock};
@@ -65,7 +78,7 @@ void init_optitrack(struct flow_struct & data) {
     g_connectParams.connectionType = kDefaultConnectionType;
 
     g_connectParams.serverAddress = "172.16.222.18"; // optitrack server
-    g_connectParams.localAddress = "172.16.223.224"; // local ip
+    g_connectParams.localAddress = "172.16.223.229"; // local ip
     printf("Optitrack connecting...\n");
     int e;
     e = g_pClient->Connect( g_connectParams );

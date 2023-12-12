@@ -5,29 +5,16 @@
 #include <chrono>
 #include <stdio.h>
 #include <eigen3/Eigen/Geometry>
+#include <eigen3/Eigen/Core>
 #include <iostream>
 #include <math.h>
 #include <map>
 
 #include "protocol.h"
 
-#define WINDOW_WIDTH 1280
-#define WINDOW_HEIGHT 720
-
-#define PI 3.141525
-
-#define CAMERA_VERTICAL_FOV (53.0 * DEG_TO_RAD)
-
-#define CAMERA_HORIZONTAL_FOV (90.0 * DEG_TO_RAD)
-
-#define RAD_TO_DEG (180.0/PI)
-#define DEG_TO_RAD (PI/180.0)
+#include "camera_stuff.h"
 
 #define EVENT_DIVIDER_PER_MS 0.25
-
-#define UNDISTORT_K1 -0.3344015
-#define UNDISTORT_K2 0.1542642
-#define UNDISTORT_K3 0
 
 struct tracked_object {
     int id;
@@ -106,6 +93,20 @@ void populate_id_to_polygons() {
         {0, 0, 0.155},
         {-0.04, 0, 0.155},
     };
+    id_to_polygon[HAMMER_NEW] = {
+        {0, 0, -0.24},
+        {0, 0, 0.015},
+        {0.05, 0, -0.03},
+        {0, 0, 0.015},
+        {-0.05, 0, 0.015},
+    };
+    id_to_polygon[HAMMER_NEW_NEW] = {
+        {0, 0, -0.24},
+        {0, 0, 0.015},
+        {0.05, 0, -0.03},
+        {0, 0, 0.015},
+        {-0.05, 0, 0.015},
+    };
 
     // circle
     const double circle_radius = 0.29/2;
@@ -133,31 +134,6 @@ Eigen::Quaternion<double> rectangle_offset_q(void) {
     Eigen::AngleAxisd zAngle(0, Eigen::Vector3d::UnitZ());
 
     return xAngle * yAngle * zAngle;
-}
-
-Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
-    Eigen::Vector2<double> out;
-    out[0] = atan2(pos.x(), -pos.z()) / (CAMERA_HORIZONTAL_FOV / 2) * WINDOW_WIDTH + WINDOW_WIDTH / 2;
-    out[1] = -atan2(pos.y(), -pos.z()) / (CAMERA_VERTICAL_FOV / 2) * WINDOW_HEIGHT + WINDOW_HEIGHT / 2;
-
-    return out;
-}
-
-Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
-    Eigen::Vector2<double> out;
-    pixel[0] -= WINDOW_WIDTH / 2;
-    pixel[1] -= WINDOW_HEIGHT / 2;
-    double r = sqrt(pow(pixel[0], 2) + pow(pixel[1], 2));
-    // r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2));
-    r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2) / 2);
-    // r /= WINDOW_WIDTH / 2;
-    // r = 0;
-    double correction = 1 + UNDISTORT_K1 * pow(r, 2) + UNDISTORT_K2 * pow(r, 4) + UNDISTORT_K3 * pow(r, 6);
-    out[0] = pixel[0] / correction;
-    out[1] = pixel[1] / correction;
-    out[0] += WINDOW_WIDTH / 2;
-    out[1] += WINDOW_HEIGHT / 2;
-    return out;
 }
 
 int main(int argc, char **argv) {
@@ -227,7 +203,7 @@ int main(int argc, char **argv) {
             struct optitrack_header header;
             fread(&header, 1, sizeof(header), f);
             // printf("id %d\n", header.object_id);
-            if (header.object_id  < 10) {
+            if (header.object_id < 10) {
                 camera_object.position = {header.pos_x, header.pos_y, header.pos_z};
                 camera_object.attitude = Eigen::Quaternion<double>{header.q_w, header.q_x, header.q_y, header.q_z}.normalized();
                 camera_object.id = header.object_id;
@@ -254,11 +230,10 @@ int main(int argc, char **argv) {
                 Eigen::Vector3<double> relative_position = (object.second.position - camera_object.position);
                 relative_position = camera_object.attitude.inverse() * relative_position;
                 Eigen::Vector2<double> center = position_to_pixel(relative_position);
-                SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255);
+                SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
                 const int cross_size = 20;
                 SDL_RenderDrawLine(renderer, center.x() - cross_size, center.y(), center.x() + cross_size, center.y());
                 SDL_RenderDrawLine(renderer, center.x(), center.y() - cross_size, center.x(), center.y() + cross_size);
-
 
                 //render 3d
                 std::vector<Eigen::Vector3<double>> points = id_to_polygon.at(object.first);

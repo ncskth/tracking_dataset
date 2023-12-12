@@ -14,14 +14,15 @@ add_executable(stat_analyzer stat_analyzer.cpp)
 
 add_executable(event_counter event_counter.cpp)
 
-add_executable(data_converter data_converter.cpp)
+add_executable(data_converter data_converter.cpp camera_stuff.cpp)
 target_link_libraries(data_converter -llz4)
 target_link_libraries(data_converter -lhdf5_serial)
 target_include_directories(data_converter PRIVATE /usr/include/hdf5/serial/)
 
-add_executable(visualizer visualizer.cpp)
+add_executable(visualizer visualizer.cpp camera_stuff.cpp)
 target_link_libraries(visualizer -lSDL2)
 
-add_executable(main main.cpp camera.cpp optitrack.cpp)
+add_executable(main main.cpp camera.cpp optitrack.cpp recorder_visualizer.cpp camera_stuff.cpp)
 target_link_libraries(main MetavisionSDK::core MetavisionSDK::driver MetavisionSDK::ui)
 target_link_libraries(main libnatnet)
+target_link_libraries(main -lSDL2)

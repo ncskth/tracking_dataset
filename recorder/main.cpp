@@ -13,10 +13,14 @@
 #include <chrono>
 #include <string.h>
 
+#include <iomanip>
+#include <ctime>
+
 #include "camera.h"
 #include "optitrack.h"
 #include "flow_struct.h"
 #include "protocol.h"
+#include "recorder_visualizer.h"
 
 #define MAX(a, b) a > b ? a : b
 
@@ -24,17 +28,19 @@ std::atomic<int> max_queue_size = 0;
 
 
 uint32_t initial_timestamp = 0;
+uint32_t global_timer = 0;
 void init_timestamper(flow_struct & flow) {
     struct timespec time;
     struct timestamp_header entry;
     while (true) {
         clock_gettime(CLOCK_MONOTONIC, &time);
         uint32_t t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
-        if (t == 0) {
+        if (initial_timestamp == 0) {
             initial_timestamp = t;
         }
         t -= initial_timestamp;
         entry.pc_t = t;
+        global_timer = t;
         struct size_buf data;
         data.size = sizeof(entry) + 1;
         data.buf = new uint8_t[data.size];
@@ -55,10 +61,14 @@ void init_printer(flow_struct & flow) {
     while (true) {
         std::cout << "queue size: " << max_queue_size << "\n";
         std::cout << "events: " << num_events / 1e6 << "Me\n";
+        std::cout << "time: " << global_timer / 1e6 << "s\n";
+        std::cout << "start: " << initial_timestamp << "s\n";
+        std::cout << "tracked objects: " << tracked_objects.size() << "\n";
         num_events = 0;
         max_queue_size = 0;
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1000ms);
+
     }
 }
 
@@ -70,12 +80,22 @@ int main(int argc, char *argv[]) {
     }
     struct flow_struct flow;
     flow.data_available = 0;
+    std::string arg(argv[1]);
+
+    // auto t = std::time(nullptr);
+    // auto tm = *std::localtime(&t);
+
+    // std::put_time(&tm, "%d-%m-%Y %H-%M-%S");
+    // auto str = oss.str();
+
+
     FILE *f = fopen(argv[1], "w");
 
     std::thread camera_t(init_camera, std::ref(flow));
     std::thread optitrack_t(init_optitrack, std::ref(flow));
     std::thread timestamper_t(init_timestamper, std::ref(flow));
     std::thread printer_t(init_printer, std::ref(flow));
+    std::thread drawer_t(init_drawer, std::ref(flow));
 
     uint8_t write_buf[BUFSIZ];
     int write_index = 0;

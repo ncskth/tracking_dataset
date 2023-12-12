@@ -7,32 +7,13 @@
 #include "camera.h"
 #include "protocol.h"
 
-// // this function will be associated to the camera callback
-// void camera_cb(const Metavision::EventCD *begin, const Metavision::EventCD *end) {
-//     struct size_buf data;
-
-//     data.buf = new[sizeof(struct camera_event) * 500] uint8_t;
-//     // this loop allows us to get access to each event received in this callback
-//     int i = 0;
-//     for (const Metavision::EventCD *ev = begin; ev != end; ++ev) {
-//         struct camera_event entry;
-//         entry.polarity = ev->p;
-//         entry.x = ev->x;
-//         entry.y = ev->y;
-//         entry.t = ev->t;
-//         memcpy(data.buf + sizeof(struct camera_event), &entry, sizeof(struct camera_event));
-//     }
-
-//     // report
-//     std::cout << "There were " << counter << " events in this callback" << std::endl;
-// }
-
 uint32_t num_events;
+uint8_t camera_frame[1280*720];
 
 void init_camera(struct flow_struct & flow) {
     Metavision::Camera cam; // create the camera
     cam = Metavision::Camera::from_first_available();
-
+    // cam = Metavision::Camera::from_serial("00050948");
     auto &biases = cam.biases();
     auto facility = biases.get_facility();
     for (auto k : {"bias_diff", "bias_diff_on", "bias_diff_off", "bias_fo",
@@ -49,7 +30,7 @@ void init_camera(struct flow_struct & flow) {
         // facility->set("bias_hpf", 0);
         // facility->set("bias_refr", 68);
 
-        facility->set("bias_diff", 80);
+        // facility->set("bias_diff", 80);
         facility->set("bias_diff_on", 120);
         facility->set("bias_diff_off", 45);
         facility->set("bias_fo", 45);
@@ -71,6 +52,7 @@ void init_camera(struct flow_struct & flow) {
         clock_gettime(CLOCK_MONOTONIC, &time);
         uint32_t pc_t = (time.tv_sec * 1000000000 + time.tv_nsec) / 1000;
         for (const Metavision::EventCD *ev = begin; ev != end; ++ev) {
+            camera_frame[ev->x + ev->y * 1280]++;
             struct camera_event entry;
             entry.p = ev->p;
             entry.x = ev->x;
