@@ -17,6 +17,10 @@
 #define DEG_TO_RAD (PI/180.0)
 
 
+extern std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
+
 Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos);
 
 Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel);
+
+void populate_id_to_polygons();
