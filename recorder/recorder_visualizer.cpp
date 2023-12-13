@@ -33,7 +33,7 @@ void init_drawer(struct flow_struct & data) {
         SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         for (uint64_t i = 0; i < 1280*720; i++) {
             if (camera_frame[i] > 0) {
-                SDL_RenderDrawPoint(renderer, i % 1280, i / 1280);
+                SDL_RenderDrawPoint(renderer, 1280 - (i % 1280), i / 1280);
             }
         }
         memset(camera_frame, 0, sizeof(camera_frame));

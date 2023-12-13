@@ -2,6 +2,7 @@
 #include <eigen3/Eigen/Core>
 #include <map>
 
+#include "iostream"
 #include "camera_stuff.h"
 #include "protocol.h"
 
@@ -35,12 +36,15 @@ Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
     r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2) / 2);
     // r /= WINDOW_WIDTH / 2;
     // r /= WINDOW_HEIGHT / 2;
-    // r = 0;
+
+    // radial
     double correction = 1 + UNDISTORT_K1 * pow(r, 2) + UNDISTORT_K2 * pow(r, 4) + UNDISTORT_K3 * pow(r, 6);
-    out[0] = pixel[0] / correction;
-    out[1] = pixel[1] / correction;
+    // std::cout << correction << std::endl;
+    out[0] = pixel[0] * correction;
+    out[1] = pixel[1] * correction;
     out[0] += WINDOW_WIDTH / 2;
     out[1] += WINDOW_HEIGHT / 2;
+
     return out;
 }
 
