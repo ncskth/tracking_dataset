@@ -33,8 +33,8 @@ Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
     pixel[1] -= WINDOW_HEIGHT / 2;
     double r = sqrt(pow(pixel[0], 2) + pow(pixel[1], 2));
     // r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2));
-    r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2) / 2);
-    // r /= WINDOW_WIDTH / 2;
+    // r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2) / 2);
+    r /= WINDOW_WIDTH / 2;
     // r /= WINDOW_HEIGHT / 2;
 
     // radial
