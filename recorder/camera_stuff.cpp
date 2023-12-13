@@ -45,6 +45,10 @@ Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
     out[0] += WINDOW_WIDTH / 2;
     out[1] += WINDOW_HEIGHT / 2;
 
+
+    // tangent
+    out[0] += 2 * UNDISTORT_P1 * pixel[0] * pixel[1] + UNDISTORT_P2  * (r * r + 2 * pixel[0] * pixel[0]);
+    out[1] += 2 * UNDISTORT_P1 * (r * r + 2 * pixel[1] * pixel[1]) + 2 * UNDISTORT_P2 * pixel[0] * pixel[1];
     return out;
 }
 
