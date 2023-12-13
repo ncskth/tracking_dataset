@@ -22,7 +22,7 @@ Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
     long_pos = {pos.x(), pos.y(), pos.z(), 1};
     Eigen::Vector3<double> test = camera_matrix * long_pos;
     test /= test.z();
-    out.x() = 1280 - test.x();
+    out.x() = test.x();
     out.y() = test.y();
     return out;
 }
