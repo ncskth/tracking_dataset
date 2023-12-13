@@ -14,8 +14,8 @@ Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
     Eigen::Vector2<double> out;
     Eigen::Matrix<double, 3, 4> camera_matrix;
     // Eigen::Vector3<double> {2.7 , 4.2, 1};
-    camera_matrix << 1669.808949078042, 0, 639.8214013101356, 0,
-                     0, 1669.808949078042, 322.6272061159467, 0,
+    camera_matrix << 1709.20274222741, 0, 642.2885257178672, 0,
+                     0, 1709.20274222741, 332.2014243719, 0,
                      0, 0, 1, 0;
 
     Eigen::Matrix<double, 4,1> long_pos;
