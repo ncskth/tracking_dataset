@@ -18,6 +18,14 @@
 #define RAD_TO_DEG (180.0/PI)
 #define DEG_TO_RAD (PI/180.0)
 
+#define CAMERA_MATRIX_INIT 1709.20274222741, 0, 642.2885257178672, 0,\
+                     0, 1709.20274222741, 332.2014243719, 0,\
+                     0, 0, 1, 0
+
+
+#define CAMERA_MATRIX_INIT_CV 1709.20274222741, 0, 642.2885257178672,\
+                     0, 1709.20274222741, 332.2014243719,\
+                     0, 0, 1
 
 extern std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
 

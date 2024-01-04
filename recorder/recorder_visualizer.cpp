@@ -33,7 +33,10 @@ void init_drawer(struct flow_struct & data) {
         SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         for (uint64_t i = 0; i < 1280*720; i++) {
             if (camera_frame[i] > 0) {
-                SDL_RenderDrawPoint(renderer, 1280 - (i % 1280), i / 1280);
+                int x = 1280 - (i % 1280);
+                int y = i / 1280;
+                auto undistored_pixel = undistort_pixel({x, y});
+                SDL_RenderDrawPoint(renderer, undistored_pixel.x(), undistored_pixel.y());
             }
         }
         memset(camera_frame, 0, sizeof(camera_frame));
@@ -46,10 +49,11 @@ void init_drawer(struct flow_struct & data) {
             }
         }
 
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 64);
         SDL_RenderDrawLine(renderer, 1280 / 2, 0, 1280 / 2, 720);
         SDL_RenderDrawLine(renderer, 0, 720 / 2, 1280, 720 / 2);
 
+        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
 
         for (auto object : tracked_objects) {
             if (object.second.id < 10) {
@@ -57,9 +61,9 @@ void init_drawer(struct flow_struct & data) {
             }
             //draw cross
             Eigen::Vector3<double> relative_position = (object.second.position - camera_object.position);
-            relative_position = camera_object.attitude.inverse() * relative_position;
+            relative_position = camera_object.attitude.inverse().normalized() * relative_position;
             Eigen::Vector2<double> center = position_to_pixel(relative_position);
-            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
             const int cross_size = 20;
             SDL_RenderDrawLine(renderer, center.x() - cross_size, center.y(), center.x() + cross_size, center.y());
             SDL_RenderDrawLine(renderer, center.x(), center.y() - cross_size, center.x(), center.y() + cross_size);

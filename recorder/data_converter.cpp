@@ -79,15 +79,6 @@ std::string optitrack_id_to_name(enum optitrack_ids id) {
             return std::string("circle");
         case TRIANGLE0:
             return std::string("triangle");
-        case CHECKERBOARD:
-            return std::string("checkerboard");
-        case PLIER0:
-            return std::string("plier");
-        case HAMMER0:
-        case HAMMER1:
-        case HAMMER_NEW:
-        case HAMMER_NEW_NEW:
-            return std::string("hammer");
         case BLOB0:
             return std::string("blob");
         default:

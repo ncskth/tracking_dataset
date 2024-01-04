@@ -1,6 +1,8 @@
 #include <eigen3/Eigen/Geometry>
 #include <eigen3/Eigen/Core>
 #include <map>
+#include <opencv2/calib3d.hpp>
+#include <vector>
 
 #include "iostream"
 #include "camera_stuff.h"
@@ -8,47 +10,55 @@
 
 std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
 
+// Camera matrix and distortion coefficients
+cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << CAMERA_MATRIX_INIT_CV);
+cv::Mat distCoeffs = (cv::Mat_<double>(1, 5) << UNDISTORT_K1, UNDISTORT_K2, UNDISTORT_P1, UNDISTORT_P2, UNDISTORT_K3);
 
+cv::Mat rVec = (cv::Mat_<double>(1, 3) << 0, 0, 0);
+cv::Mat tVec = (cv::Mat_<double>(1, 3) << 0, 0, 0);
+cv::Mat identity = (cv::Mat_<double>(3, 3) << 1,0,0,0,1,0,0,0,1);
 
+// open cv
 Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
     Eigen::Vector2<double> out;
-    Eigen::Matrix<double, 3, 4> camera_matrix;
-    // Eigen::Vector3<double> {2.7 , 4.2, 1};
-    camera_matrix << 1709.20274222741, 0, 642.2885257178672, 0,
-                     0, 1709.20274222741, 332.2014243719, 0,
-                     0, 0, 1, 0;
 
-    Eigen::Matrix<double, 4,1> long_pos;
-    long_pos = {pos.x(), pos.y(), pos.z(), 1};
-    Eigen::Vector3<double> test = camera_matrix * long_pos;
-    test /= test.z();
-    out.x() = test.x();
-    out.y() = test.y();
+    std::vector<cv::Point3f> rawPositions;
+    rawPositions.push_back(cv::Point3f(pos[0], -pos[1], -pos[2]));
+
+    // Undistort the points
+    std::vector<cv::Point2f> projectedPositions;
+    cv::projectPoints(rawPositions, rVec, tVec, cameraMatrix, distCoeffs, projectedPositions);
+    out[0] = 1280 - projectedPositions[0].x;
+    out[1] = projectedPositions[0].y;
+
+    // out = undistort_pixel(out);
+
     return out;
 }
 
+// open cv
 Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
     Eigen::Vector2<double> out;
-    pixel[0] -= WINDOW_WIDTH / 2;
-    pixel[1] -= WINDOW_HEIGHT / 2;
-    double r = sqrt(pow(pixel[0], 2) + pow(pixel[1], 2));
-    // r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2));
-    // r /= sqrt(pow(WINDOW_WIDTH, 2) + pow(WINDOW_HEIGHT, 2) / 2);
-    r /= WINDOW_WIDTH / 2;
-    // r /= WINDOW_HEIGHT / 2;
 
-    // radial
-    double correction = 1 + UNDISTORT_K1 * pow(r, 2) + UNDISTORT_K2 * pow(r, 4) + UNDISTORT_K3 * pow(r, 6);
-    // std::cout << correction << std::endl;
-    out[0] = pixel[0] * correction;
-    out[1] = pixel[1] * correction;
-    out[0] += WINDOW_WIDTH / 2;
-    out[1] += WINDOW_HEIGHT / 2;
+    std::vector<cv::Point2f> distortedPoints;
+    distortedPoints.push_back(cv::Point2f(pixel[0], pixel[1]));
+
+    // Camera matrix and distortion coefficients
+
+    double fx = cameraMatrix.at<double>(0, 0);
+    double fy = cameraMatrix.at<double>(1, 1);
+    double cx = cameraMatrix.at<double>(0, 2);
+    double cy = cameraMatrix.at<double>(1, 2);
 
 
-    // tangent
-    out[0] += 2 * UNDISTORT_P1 * pixel[0] * pixel[1] + UNDISTORT_P2  * (r * r + 2 * pixel[0] * pixel[0]);
-    out[1] += 2 * UNDISTORT_P1 * (r * r + 2 * pixel[1] * pixel[1]) + 2 * UNDISTORT_P2 * pixel[0] * pixel[1];
+    // Undistort the points
+    std::vector<cv::Point2f> undistortedPoints;
+
+    cv::undistortPoints(distortedPoints, undistortedPoints, cameraMatrix, distCoeffs);
+
+    out[0] = (undistortedPoints[0].x * fx + cx);
+    out[1] = (undistortedPoints[0].y * fx + cy);
+
     return out;
 }
 
@@ -62,14 +72,6 @@ void populate_id_to_polygons() {
         {rectangle_width / 2.0, 0, rectengle_height / 2.0},
         {-rectangle_width / 2.0, 0, rectengle_height / 2.0},
         {-rectangle_width / 2.0, 0, -rectengle_height / 2.0},
-    };
-
-    id_to_polygon[CHECKERBOARD] = {
-        {-rectengle_height / 2.0, 0, -rectangle_width / 2.0},
-        {rectengle_height / 2.0, 0, -rectangle_width / 2.0},
-        {rectengle_height / 2.0, 0, rectangle_width / 2.0},
-        {-rectengle_height / 2.0, 0, rectangle_width / 2.0},
-        {-rectengle_height / 2.0, 0, -rectangle_width / 2.0},
     };
 
     // square
@@ -92,50 +94,13 @@ void populate_id_to_polygons() {
         {-triangle_height / 2, 0, 0}
     };
 
-    // plier
-    id_to_polygon[PLIER0] = {
-        {-0.025, 0, -0.15},
-        {0, 0, 0},
-        {0, 0, 0.045},
-        {0, 0, 0},
-        {0.025, 0, -0.15}
-    };
-
-    // hammer
-    id_to_polygon[HAMMER0] = {
-        {0, 0, -0.10},
-        {0, 0, 0.155},
-        {0.04, 0, 0.12},
-        {0, 0, 0.155},
-        {-0.04, 0, 0.155},
-    };
-    id_to_polygon[HAMMER1] = {
-        {0, 0, -0.10},
-        {0, 0, 0.155},
-        {0.04, 0, 0.12},
-        {0, 0, 0.155},
-        {-0.04, 0, 0.155},
-    };
-    id_to_polygon[HAMMER_NEW] = {
-        {0, 0, -0.24},
-        {0, 0, 0.015},
-        {0.05, 0, -0.03},
-        {0, 0, 0.015},
-        {-0.05, 0, 0.015},
-    };
-    id_to_polygon[HAMMER_NEW_NEW] = {
-        {0, 0, -0.24},
-        {0, 0, 0.015},
-        {0.05, 0, -0.03},
-        {0, 0, 0.015},
-        {-0.05, 0, 0.015},
-    };
-
     id_to_polygon[OLD_RECT] = {
         {-rectangle_width / 2.0, 0, -rectengle_height / 2.0},
     };
 
-
+    id_to_polygon[WAND] = {
+        {-rectangle_width / 2.0, 0, -rectengle_height / 2.0},
+    };
 
     id_to_polygon[BLOB0] = {
         {-0.14, 0, 0.08},
@@ -149,8 +114,8 @@ void populate_id_to_polygons() {
     };
 
     // circle
-    const double circle_radius = 0.29/2;
-    int iterations = 16;
+    const double circle_radius = 0.291/2;
+    int iterations = 64;
     for (int i = 0; i <= iterations; i++) {
         id_to_polygon[CIRCLE0].push_back({
             sin(2 * PI * i / iterations) * circle_radius,

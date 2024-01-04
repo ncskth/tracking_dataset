@@ -17,15 +17,11 @@ enum optitrack_ids {
     SQUARE0 = 12,
     CIRCLE0 = 13,
     TRIANGLE0 = 14,
-    PLIER0 = 15,
-    HAMMER0 = 16,
-    HAMMER1 = 17,
-    HAMMER_NEW = 18,
-    HAMMER_NEW_NEW = 19,
+    HAMMER = 15,
+    SAW = 16,
     OLD_RECT = 20,
     BLOB0 = 21,
-    TEST_POINT = 128,
-    CHECKERBOARD = 129
+    WAND = 22,
 };
 
 enum data_type {
