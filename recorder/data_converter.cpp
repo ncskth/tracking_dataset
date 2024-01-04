@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
                         event_frame[0][i] = 0;
                     }
                     if (t_adjusted - last_status_print > 1000000) {
-                        printf("Progress: %.2f%\n", ((float) t_adjusted - SAVE_FRAMES_AFTER) / (frame_max_time - start_timestamp) * 100);
+                        printf("Progress: %.2f%\n", ((float) t_adjusted - SAVE_FRAMES_AFTER) / (frame_max_time - start_timestamp - SKIP_ENDING) * 100);
                         last_status_print = t_adjusted;
                     }
 

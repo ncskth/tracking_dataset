@@ -87,7 +87,7 @@ int main(int argc, char *argv[]) {
     std::ostringstream oss;
     auto t = std::time(nullptr);
     auto tm = *std::localtime(&t);
-    oss << std::put_time(&tm, "%Y_%m_%d_%H_M_%S");
+    oss << std::put_time(&tm, "%Y_%m_%d_%H_%M_%S");
     std::string date = oss.str();
     std::string out_path = date + "_" + std::string(argv[1]);
     FILE *f = fopen(out_path.c_str(), "w");
