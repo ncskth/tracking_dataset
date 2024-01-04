@@ -82,14 +82,15 @@ int main(int argc, char *argv[]) {
     flow.data_available = 0;
     std::string arg(argv[1]);
 
-    // auto t = std::time(nullptr);
-    // auto tm = *std::localtime(&t);
-
-    // std::put_time(&tm, "%d-%m-%Y %H-%M-%S");
     // auto str = oss.str();
 
-
-    FILE *f = fopen(argv[1], "w");
+    std::ostringstream oss;
+    auto t = std::time(nullptr);
+    auto tm = *std::localtime(&t);
+    oss << std::put_time(&tm, "%Y_%m_%d_%H_M_%S");
+    std::string date = oss.str();
+    std::string out_path = date + "_" + std::string(argv[1]);
+    FILE *f = fopen(out_path.c_str(), "w");
 
     std::thread camera_t(init_camera, std::ref(flow));
     std::thread optitrack_t(init_optitrack, std::ref(flow));

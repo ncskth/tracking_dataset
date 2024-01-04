@@ -56,7 +56,7 @@ Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
 
     cv::undistortPoints(distortedPoints, undistortedPoints, cameraMatrix, distCoeffs);
 
-    out[0] = (undistortedPoints[0].x * fx + cx);
+    out[0] = 1280 - (undistortedPoints[0].x * fx + cx);
     out[1] = (undistortedPoints[0].y * fx + cy);
 
     return out;

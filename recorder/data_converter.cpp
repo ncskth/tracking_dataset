@@ -18,7 +18,7 @@
 
 #define CONVERTER_VERSION "1.0"
 
-#define SKIP_BEGINNING 10000000
+#define COLLECT_MEAN_AFTER 10000000
 
 #define MEAN_FROM_OPTITRACK_DELTAS 500
 
@@ -30,7 +30,8 @@
 
 #define FRAME_DELTA 1000
 
-#define SAVE_FRAMES_AFTER 18000000
+#define SAVE_FRAMES_AFTER 20000000
+#define SKIP_ENDING 10000000
 
 using json = nlohmann::json;
 
@@ -159,7 +160,7 @@ int main(int argc, char **argv) {
             if (first_pc_timestamp = 0) {
                 first_pc_timestamp = header.pc_t;
             }
-            if (header.pc_t - first_pc_timestamp > SKIP_BEGINNING) {
+            if (header.pc_t - first_pc_timestamp > COLLECT_MEAN_AFTER) {
                 active = true;
             }
 
@@ -179,12 +180,15 @@ int main(int argc, char **argv) {
         }
     }
 
-    int optitrack_correction = optitrack_deltas.at(optitrack_deltas.size() / 2); // TODO this needs to be sorted lol. christ
+    std::sort(optitrack_deltas.begin(), optitrack_deltas.end());
+    std::sort(event_deltas.begin(), event_deltas.end());
+
+    int optitrack_correction = optitrack_deltas.at(optitrack_deltas.size() / 2);
     int event_correction = event_deltas.at(event_deltas.size() / 2);
 
     event_max_time = event_max_time - event_correction;
     optitrack_max_time = optitrack_max_time - optitrack_correction;
-    uint32_t frame_max_time = std::min(event_max_time, optitrack_max_time);
+    uint32_t frame_max_time = std::min(event_max_time, optitrack_max_time) - SKIP_ENDING;
 
     fseek(input_file, 0, SEEK_SET);
     active = false;
@@ -197,6 +201,7 @@ int main(int argc, char **argv) {
     int aedat_header_offset = AEDAT4::save_header(event_output);
     uint32_t last_event_frame_time;
     uint32_t last_optitrack_frame_time;
+    uint32_t last_status_print = 0;
     // second sweep for data
     while (!feof(input_file)) {
         int id = fgetc(input_file);
@@ -211,7 +216,9 @@ int main(int argc, char **argv) {
                     continue;
                 }
                 uint32_t t_adjusted = entry.t - event_correction - start_timestamp;
-                // printf(" %lld %lld %lld\n", entry.t, event_correction, start_timestamp);
+                if (t_adjusted < SAVE_FRAMES_AFTER - FRAME_DELTA) {
+                    continue;
+                }
 
                 int index = entry.x + entry.y * FRAME_WIDTH;
                 if (entry.p) {
@@ -233,7 +240,7 @@ int main(int argc, char **argv) {
                 last_event = t_adjusted;
                 events.push_back(formal_event);
                 //optitrack interpolation misses the last frame
-                if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
+                if (t_adjusted > frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
                 && t_adjusted < frame_max_time - start_timestamp) {
                     frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
                     // printf("Saved %d\n", t_adjusted);
@@ -247,7 +254,11 @@ int main(int argc, char **argv) {
                         positive_events += event_frame[0][i] & 0x00ff;
                         event_frame[0][i] = 0;
                     }
-                    // printf("events frame %d %d \n", positive_events, negative_events);
+                    if (t_adjusted - last_status_print > 1000000) {
+                        printf("Progress: %.2f%\n", ((float) t_adjusted - SAVE_FRAMES_AFTER) / (frame_max_time - start_timestamp) * 100);
+                        last_status_print = t_adjusted;
+                    }
+
                 }
             }
             AEDAT4::save_events(event_output, events);
@@ -264,8 +275,8 @@ int main(int argc, char **argv) {
             if (first_pc_timestamp == 0) {
                 first_pc_timestamp = header.pc_t;
             }
-            if (not active && header.pc_t - first_pc_timestamp > SKIP_BEGINNING) {
-                start_timestamp = header.pc_t - SKIP_BEGINNING;
+            if (not active && header.pc_t - first_pc_timestamp > COLLECT_MEAN_AFTER) {
+                start_timestamp = header.pc_t - COLLECT_MEAN_AFTER;
                 active = true;
             }
 
@@ -363,11 +374,12 @@ int main(int argc, char **argv) {
                 interp_map["qz"] = object_relative_q.z();
                 optitrack_json["data"][name].push_back(interp_map);
 
-                if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA <= frame_max_time - start_timestamp) {
+                if (i * FRAME_DELTA > SAVE_FRAMES_AFTER && i * FRAME_DELTA < frame_max_time - start_timestamp) {
                     std::array<float, 9> ahrs {interp_map["cx"], interp_map["cy"], interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
                     ahrs_matrix[name].push_back(ahrs);
                     last_optitrack_frame_time = i * FRAME_DELTA;
                 }
+
             }
         }
     }

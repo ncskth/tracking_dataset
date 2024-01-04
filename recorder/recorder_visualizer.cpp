@@ -33,7 +33,7 @@ void init_drawer(struct flow_struct & data) {
         SDL_SetRenderDrawColor(renderer, 255, 0, 255, 255);
         for (uint64_t i = 0; i < 1280*720; i++) {
             if (camera_frame[i] > 0) {
-                int x = 1280 - (i % 1280);
+                int x = i % 1280;
                 int y = i / 1280;
                 auto undistored_pixel = undistort_pixel({x, y});
                 SDL_RenderDrawPoint(renderer, undistored_pixel.x(), undistored_pixel.y());
