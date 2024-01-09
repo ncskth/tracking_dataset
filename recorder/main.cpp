@@ -74,22 +74,27 @@ void init_printer(flow_struct & flow) {
 
 // main loop
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        printf("please provide a path to store the data\n");
+    if (argc != 2 && argc != 1) {
+        printf("too many arguments\n");
         return -1;
     }
     struct flow_struct flow;
     flow.data_available = 0;
-    std::string arg(argv[1]);
 
-    // auto str = oss.str();
+    std::string out_path;
+    if (argc == 2) {
+        std::string arg(argv[1]);
+        std::ostringstream oss;
+        auto t = std::time(nullptr);
+        auto tm = *std::localtime(&t);
+        oss << std::put_time(&tm, "%Y_%m_%d_%H_%M_%S");
+        std::string date = oss.str();
+        out_path = date + "_" + std::string(argv[1]);
+    }
 
-    std::ostringstream oss;
-    auto t = std::time(nullptr);
-    auto tm = *std::localtime(&t);
-    oss << std::put_time(&tm, "%Y_%m_%d_%H_%M_%S");
-    std::string date = oss.str();
-    std::string out_path = date + "_" + std::string(argv[1]);
+    if (argc == 1) {
+        out_path = "/dev/null";
+    }
     FILE *f = fopen(out_path.c_str(), "w");
 
     std::thread camera_t(init_camera, std::ref(flow));

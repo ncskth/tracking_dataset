@@ -85,13 +85,14 @@ void populate_id_to_polygons() {
     };
 
     // triangle
+    const double triangle_offset =  -0.045;
     const double triangle_width = 0.29;
     const double triangle_height =  triangle_width / 2 * tan(60 * DEG_TO_RAD);
     id_to_polygon[TRIANGLE0] = {
-        {-triangle_height / 2, 0, 0},
-        {triangle_height / 2, 0, -triangle_width / 2},
-        {triangle_height / 2, 0, triangle_width / 2},
-        {-triangle_height / 2, 0, 0}
+        {-triangle_height / 2 + triangle_offset, 0, 0},
+        {triangle_height / 2 + triangle_offset, 0, -triangle_width / 2},
+        {triangle_height / 2 + triangle_offset, 0, triangle_width / 2},
+        {-triangle_height / 2 + triangle_offset, 0, 0}
     };
 
     id_to_polygon[OLD_RECT] = {
