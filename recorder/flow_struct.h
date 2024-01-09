@@ -14,4 +14,5 @@ struct flow_struct {
     std::atomic<int> data_available;
     std::mutex queue_mutex;
     std::queue<struct size_buf> data_queue;
+    std::atomic<bool> stop = false;
 };

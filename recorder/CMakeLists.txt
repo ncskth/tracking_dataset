@@ -33,6 +33,7 @@ add_executable(main main.cpp camera.cpp optitrack.cpp recorder_visualizer.cpp ca
 target_link_libraries(main MetavisionSDK::core MetavisionSDK::driver MetavisionSDK::ui)
 target_link_libraries(main libnatnet)
 target_link_libraries(main -lSDL2)
+target_link_libraries(main -lSDL2_ttf)
 target_link_libraries(main ${OpenCV_LIBS})
 # target_link_libraries(main -lopencv_calib3d)
 # target_link_libraries(main -lopencv_core)

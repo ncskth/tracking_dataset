@@ -54,6 +54,10 @@ void init_timestamper(flow_struct & flow) {
         flow.data_available++;
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(100ms);
+
+        if (flow.stop) {
+            return;
+        }
     }
 }
 
@@ -69,6 +73,9 @@ void init_printer(flow_struct & flow) {
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1000ms);
 
+        if (flow.stop) {
+            return;
+        }
     }
 }
 
@@ -108,6 +115,9 @@ int main(int argc, char *argv[]) {
     while(true){
         while (flow.data_available) {
             max_queue_size = MAX( (int) flow.data_available, (int) max_queue_size);
+            if (flow.stop) {
+                return 0;
+            }
             std::unique_lock lock{flow.queue_mutex, std::defer_lock};
             lock.lock();
             struct size_buf data = flow.data_queue.front();

@@ -90,6 +90,9 @@ void init_optitrack(struct flow_struct & data) {
 
     while (true) {
         using namespace std::chrono_literals;
+        if (data.stop) {
+            return;
+        }
         std::this_thread::sleep_for(1000s);
     }
 }

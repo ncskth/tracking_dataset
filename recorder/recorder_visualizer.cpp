@@ -9,6 +9,7 @@
 #include <iostream>
 #include <math.h>
 #include <map>
+#include <SDL2/SDL_ttf.h>
 
 #include "recorder_visualizer.h"
 
@@ -16,6 +17,10 @@
 #include "optitrack.h"
 #include "camera.h"
 #include "camera_stuff.h"
+
+
+
+auto start = std::chrono::high_resolution_clock::now();
 
 void init_drawer(struct flow_struct & data) {
     populate_id_to_polygons();
@@ -27,6 +32,10 @@ void init_drawer(struct flow_struct & data) {
     SDL_Init(SDL_INIT_VIDEO);
     SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, 0, &window, &renderer);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+
+    TTF_Init();
+    TTF_Font* font = TTF_OpenFont("/usr/share/fonts/truetype/freefont/FreeSans.ttf", 100);
 
     while (true) {
         // draw frame
@@ -40,6 +49,23 @@ void init_drawer(struct flow_struct & data) {
             }
         }
         memset(camera_frame, 0, sizeof(camera_frame));
+
+
+
+        auto now = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - start);
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%d", duration.count());
+
+        SDL_Rect destRect;
+        destRect.x = WINDOW_WIDTH * 3 / 4;  // X-coordinate
+        destRect.y = 25;  // Y-coordinate
+
+        SDL_Surface* surface = TTF_RenderText_Solid(font, buf, {255, 255, 255, 255});
+        SDL_Texture* textTexture = SDL_CreateTextureFromSurface(renderer, surface);
+        SDL_QueryTexture(textTexture, NULL, NULL, &destRect.w, &destRect.h);
+        SDL_RenderCopy(renderer, textTexture, NULL, &destRect);
+        SDL_FreeSurface(surface);
 
         // draw optitrack
         struct tracked_object camera_object;
@@ -91,12 +117,32 @@ void init_drawer(struct flow_struct & data) {
             }
         }
 
+
         // present frame
         SDL_RenderPresent(renderer);
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
         SDL_RenderClear(renderer);
         std::this_thread::sleep_for(std::chrono::milliseconds(16));
-        if (SDL_PollEvent(&event) && event.type == SDL_QUIT) {
+
+
+        SDL_Event event;
+        while(SDL_PollEvent(&event))
+        {
+            switch(event.type)
+            {
+                case SDL_KEYDOWN:
+                    if (event.key.keysym.sym == SDLK_q) {
+                        data.stop = true;
+                    }
+                    break;
+
+                case SDL_QUIT:
+                    data.stop = true;
+                    break;
+            }
+        }
+
+        if (data.stop) {
             break;
         }
     }

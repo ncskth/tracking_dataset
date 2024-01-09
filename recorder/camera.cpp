@@ -81,6 +81,10 @@ void init_camera(struct flow_struct & flow) {
     cam.start();
     printf("camera started\n");
     while (true) {
+        if (flow.stop) {
+            cam.stop();
+            return;
+        }
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(1000s);
     }
