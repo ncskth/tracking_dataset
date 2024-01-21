@@ -13,6 +13,7 @@ std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
 // Camera matrix and distortion coefficients
 cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << CAMERA_MATRIX_INIT_CV);
 cv::Mat distCoeffs = (cv::Mat_<double>(1, 5) << UNDISTORT_K1, UNDISTORT_K2, UNDISTORT_P1, UNDISTORT_P2, UNDISTORT_K3);
+cv::Mat zeroDistCoeffs = (cv::Mat_<double>(1, 5) << 0, 0, 0, 0, 0);
 
 cv::Mat rVec = (cv::Mat_<double>(1, 3) << 0, 0, 0);
 cv::Mat tVec = (cv::Mat_<double>(1, 3) << 0, 0, 0);
@@ -27,8 +28,8 @@ Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
 
     // Undistort the points
     std::vector<cv::Point2f> projectedPositions;
-    cv::projectPoints(rawPositions, rVec, tVec, cameraMatrix, distCoeffs, projectedPositions);
-    out[0] = 1280 - projectedPositions[0].x;
+    cv::projectPoints(rawPositions, rVec, tVec, cameraMatrix, zeroDistCoeffs, projectedPositions);
+    out[0] = projectedPositions[0].x;
     out[1] = projectedPositions[0].y;
 
     // out = undistort_pixel(out);
@@ -56,7 +57,7 @@ Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
 
     cv::undistortPoints(distortedPoints, undistortedPoints, cameraMatrix, distCoeffs);
 
-    out[0] = 1280 - (undistortedPoints[0].x * fx + cx);
+    out[0] = (undistortedPoints[0].x * fx + cx);
     out[1] = (undistortedPoints[0].y * fx + cy);
 
     return out;
@@ -115,8 +116,8 @@ void populate_id_to_polygons() {
     };
 
     // circle
-    const double circle_radius = 0.291/2;
-    int iterations = 64;
+    const double circle_radius = 0.292/2;
+    int iterations = 150;
     for (int i = 0; i <= iterations; i++) {
         id_to_polygon[CIRCLE0].push_back({
             sin(2 * PI * i / iterations) * circle_radius,
