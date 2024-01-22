@@ -44,7 +44,7 @@ void init_drawer(struct flow_struct & data) {
             if (camera_frame[i] > 0) {
                 int x = i % 1280;
                 int y = i / 1280;
-                auto undistored_pixel = undistort_pixel({x, y});
+                auto undistored_pixel = undistort_pixel({x, y}, true);
                 SDL_RenderDrawPoint(renderer, undistored_pixel.x(), undistored_pixel.y());
             }
         }
@@ -88,7 +88,7 @@ void init_drawer(struct flow_struct & data) {
             //draw cross
             Eigen::Vector3<double> relative_position = (object.second.position - camera_object.position);
             relative_position = camera_object.attitude.inverse().normalized() * relative_position;
-            Eigen::Vector2<double> center = position_to_pixel(relative_position);
+            Eigen::Vector2<double> center = position_to_pixel(relative_position, true);
             SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
             const int cross_size = 20;
             SDL_RenderDrawLine(renderer, center.x() - cross_size, center.y(), center.x() + cross_size, center.y());
@@ -105,7 +105,7 @@ void init_drawer(struct flow_struct & data) {
                 current_point = object.second.attitude * current_point;
                 current_point += object.second.position - camera_object.position;
                 current_point = camera_object.attitude.inverse().normalized() * current_point;
-                current_pixel = position_to_pixel(current_point);
+                current_pixel = position_to_pixel(current_point, true);
                 if (first) {
                     first = false;
                     prev_pixel = current_pixel;
