@@ -20,7 +20,7 @@ cv::Mat tVec = (cv::Mat_<double>(1, 3) << 0, 0, 0);
 cv::Mat identity = (cv::Mat_<double>(3, 3) << 1,0,0,0,1,0,0,0,1);
 
 // open cv
-Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
+Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos, bool mirror) {
     Eigen::Vector2<double> out;
 
     std::vector<cv::Point3f> rawPositions;
@@ -31,14 +31,16 @@ Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos) {
     cv::projectPoints(rawPositions, rVec, tVec, cameraMatrix, zeroDistCoeffs, projectedPositions);
     out[0] = projectedPositions[0].x;
     out[1] = projectedPositions[0].y;
-
+    if (mirror) {
+        out[0] = 1280 - out[0];
+    }
     // out = undistort_pixel(out);
 
     return out;
 }
 
 // open cv
-Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
+Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel, bool mirror) {
     Eigen::Vector2<double> out;
 
     std::vector<cv::Point2f> distortedPoints;
@@ -59,6 +61,10 @@ Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel) {
 
     out[0] = (undistortedPoints[0].x * fx + cx);
     out[1] = (undistortedPoints[0].y * fx + cy);
+
+    if (mirror) {
+        out[0] = 1280 - out[0];
+    }
 
     return out;
 }

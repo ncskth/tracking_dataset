@@ -23,8 +23,8 @@
 
 extern std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
 
-Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos);
+Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos, bool mirror = false);
 
-Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel);
+Eigen::Vector2<double> undistort_pixel(Eigen::Vector2<double> pixel, bool mirror = false);
 
 void populate_id_to_polygons();
