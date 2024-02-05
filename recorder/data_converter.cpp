@@ -447,9 +447,13 @@ int main(int argc, char **argv) {
     printf("num event frames %u\n", frame_index);
     printf("num optitrack frames %u\n", (*ahrs_matrix.begin()).second.size());
     if (last_event_frame_time / 1000 != last_optitrack_frame_time / 1000) {
-        printf("End time is different\n");
+        printf("[error] End time is different\n");
     }
     if (first_event_frame_time / 1000 != first_optitrack_frame_time / 1000) {
-        printf("Start time is different\n");
+        printf("[error] Start time is different\n");
+    }
+
+    if (frame_index != (*ahrs_matrix.begin()).second.size()) {
+        printf("[error] inconsistent number of frames\n");
     }
 }
