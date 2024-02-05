@@ -112,7 +112,7 @@ void init_drawer(struct flow_struct & data) {
                     continue;
                 }
                 SDL_RenderDrawLine(renderer, prev_pixel.x(), prev_pixel.y(), current_pixel.x(), current_pixel.y());
-                SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // set color after so it's different for the first line
+                SDL_SetRenderDrawColor(renderer, 0, 128, 255, 255); // set color after so it's different for the first line
                 prev_pixel = current_pixel;
             }
         }

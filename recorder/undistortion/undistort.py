@@ -21,7 +21,7 @@ for fname in images:
     img = cv.imread(fname)
     gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
     # Find the chess board corners
-    ret, corners = cv.findChessboardCornersSB(img, pattern, cv.CALIB_CB_ADAPTIVE_THRESH
+    ret, corners = cv.findChessboardCornersSB(gray, pattern, cv.CALIB_CB_ADAPTIVE_THRESH
                                                            + cv.CALIB_CB_EXHAUSTIVE
                                                            + cv.CALIB_CB_FAST_CHECK)
     # If found, add object points, image points (after refining them)
@@ -40,6 +40,15 @@ cv.destroyAllWindows()
 
 
 ret, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
+
+# mtx = np.array([
+#     [1.6995832269779798e+03, 0.0, 6.3895363170358996e+02],
+#     [0.0, 1.6995832269779798e+03, 2.9574445327436030e+02],
+#     [0.0, 0.0, 1.0]
+# ])
+
+# dist = np.array([-7.8186862583262018e-02, 3.7019103011721088e-01,
+#             -9.8877132803925731e-03, 1.9574645436569896e-03, 0.0])
 
 print(mtx, dist)
 

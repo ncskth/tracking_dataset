@@ -30,8 +30,8 @@
 
 #define FRAME_DELTA 1000
 
-#define SAVE_FRAMES_AFTER 20000000
-#define SKIP_ENDING 10000000
+#define SAVE_FRAMES_AFTER 15000000
+#define SKIP_ENDING 15000000
 
 using json = nlohmann::json;
 
@@ -46,6 +46,14 @@ struct optitrack_object {
     float qz;
 };
 
+
+struct frame_key {
+    uint32_t n;
+    uint8_t p;
+    uint16_t x;
+    uint16_t y;
+};
+
 template <typename T>
 T interpolate(float start_time, T start_value, float end_time, T end_value, float wanted_time) {
     return (wanted_time - start_time) / (end_time - start_time) * (end_value - start_value) + start_value;
@@ -53,9 +61,8 @@ T interpolate(float start_time, T start_value, float end_time, T end_value, floa
 
 std::map<int, std::vector<optitrack_object>> optitrack_data; //we should be able to fit many many hours in memory
 
+std::array<std::array<std::pair<uint8_t, uint8_t>, FRAME_HEIGHT>, FRAME_WIDTH> event_frame;
 
-const int frame_length = 720 * 1280;
-std::array<std::array<uint16_t, frame_length>, 1> event_frame;
 // std::array<uint8_t, frame_length> event_frame;
 uint64_t frame_index = 0;
 
@@ -110,10 +117,28 @@ int main(int argc, char **argv) {
 
     h5pp::File frame_file(frame_output_path, h5pp::FileAccess::REPLACE);
 
-    std::array<std::array<uint16_t, frame_length>, 0> init_frame;
-    frame_file.setCompressionLevel(1);
-    frame_file.writeDataset(init_frame, "frames", H5D_CHUNKED, {0, frame_length}, {3, frame_length});
-    // frame_file.appendToDataset(event_frame, "frames", 0);
+    std::vector<struct frame_key> init_frame_keys;
+    std::vector<uint8_t> init_frame_values;
+
+
+
+    h5pp::hid::h5t H5_KEY_TYPE = H5Tcreate(H5T_COMPOUND, sizeof(frame_key));
+    H5Tinsert(H5_KEY_TYPE, "n", HOFFSET(frame_key, n), H5T_NATIVE_UINT32);
+    H5Tinsert(H5_KEY_TYPE, "p", HOFFSET(frame_key, p), H5T_NATIVE_UINT8);
+    H5Tinsert(H5_KEY_TYPE, "x", HOFFSET(frame_key, x), H5T_NATIVE_UINT16);
+    H5Tinsert(H5_KEY_TYPE, "y", HOFFSET(frame_key, y), H5T_NATIVE_UINT16);
+
+
+    frame_file.setCompressionLevel(2);
+
+    h5pp::Options options;
+    options.dsetChunkDims = {10000};
+    options.h5Type = H5_KEY_TYPE;
+    options.h5Layout = H5D_CHUNKED;
+    options.linkPath = "frame_keys";
+    frame_file.writeDataset(init_frame_keys, options);
+    // frame_file.writeDataset(init_frame_keys, "frame_keys", H5_KEY_TYPE, H5D_CHUNKED, {0}, {10000});
+    frame_file.writeDataset(init_frame_values, "frame_values", H5D_CHUNKED, {0}, {10000});
 
     FILE *input_file = fopen(argv[1], "r");
 
@@ -199,8 +224,10 @@ int main(int argc, char **argv) {
     size_t event_count = 0;
 
     int aedat_header_offset = AEDAT4::save_header(event_output);
-    uint32_t last_event_frame_time;
-    uint32_t last_optitrack_frame_time;
+    uint32_t last_event_frame_time = 0;
+    uint32_t first_event_frame_time = 0;
+    uint32_t last_optitrack_frame_time = 0;
+    uint32_t first_optitrack_frame_time = 0;
     uint32_t last_status_print = 0;
     // second sweep for data
     while (!feof(input_file)) {
@@ -219,12 +246,11 @@ int main(int argc, char **argv) {
                 if (t_adjusted < SAVE_FRAMES_AFTER - FRAME_DELTA) {
                     continue;
                 }
-
                 int index = entry.x + entry.y * FRAME_WIDTH;
                 if (entry.p) {
-                    ((uint8_t*) &event_frame[0][index])[0]++;
+                    event_frame[entry.x][entry.y].second++;
                 } else {
-                    ((uint8_t*) &event_frame[0][index])[1]++;
+                    event_frame[entry.x][entry.y].first++;
                 }
                 AEDAT::PolarityEvent formal_event =  {
                     .timestamp = t_adjusted,
@@ -240,25 +266,46 @@ int main(int argc, char **argv) {
                 last_event = t_adjusted;
                 events.push_back(formal_event);
                 //optitrack interpolation misses the last frame
-                if (t_adjusted > frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
+                if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
                 && t_adjusted < frame_max_time - start_timestamp) {
-                    frame_file.appendToDataset(event_frame, "frames", 0, {1, frame_length});
-                    // printf("Saved %d\n", t_adjusted);
+                    if (first_event_frame_time == 0) {
+                        first_event_frame_time = t_adjusted;
+                    }
+                    std::vector<struct frame_key> event_frame_keys;
+
+                    std::vector<uint8_t> event_frame_values;
+
+                    for (uint16_t x = 0; x < FRAME_WIDTH; x++) {
+                        for (uint16_t y = 0; y < FRAME_HEIGHT; y++) {
+                            if (event_frame[x][y].first > 0) {
+                                struct frame_key key;
+                                key.n = frame_index;
+                                key.x = x;
+                                key.y = y;
+                                key.p = 0;
+                                event_frame_keys.push_back(key);
+                                event_frame_values.push_back(event_frame[x][y].first);
+                            }
+                            if (event_frame[x][y].second > 0) {
+                                struct frame_key key;
+                                key.n = frame_index;
+                                key.x = x;
+                                key.y = y;
+                                key.p = 1;
+                                event_frame_keys.push_back(key);
+                                event_frame_values.push_back(event_frame[x][y].second);
+                            }
+                            event_frame[x][y] = {0, 0};
+                        }
+                    }
+                    frame_file.appendToDataset(event_frame_keys, "frame_keys", 0, {event_frame_keys.size()});
+                    frame_file.appendToDataset(event_frame_values, "frame_values", 0, {event_frame_values.size()});
                     frame_index++;
                     last_event_frame_time = t_adjusted;
-                    // zero out frame
-                    int negative_events = 0;
-                    int positive_events = 0;
-                    for (int i = 0; i < frame_length; i++) {
-                        negative_events += (event_frame[0][i] & 0xff00) >> 8;
-                        positive_events += event_frame[0][i] & 0x00ff;
-                        event_frame[0][i] = 0;
-                    }
                     if (t_adjusted - last_status_print > 1000000) {
                         printf("Progress: %.2f%\n", ((float) t_adjusted - SAVE_FRAMES_AFTER) / (frame_max_time - start_timestamp - SKIP_ENDING) * 100);
                         last_status_print = t_adjusted;
                     }
-
                 }
             }
             AEDAT4::save_events(event_output, events);
@@ -305,7 +352,7 @@ int main(int argc, char **argv) {
     event_output.flush();
     event_output.close();
 
-    std::map<std::string, std::vector<std::array<float, 9>>> ahrs_matrix;
+    std::map<std::string, std::vector<std::array<float, 7>>> ahrs_matrix;
 
 
     json optitrack_json;
@@ -363,10 +410,8 @@ int main(int argc, char **argv) {
                 // pixel = undistort_pixel(pixel);
                 std::map<std::string, float> interp_map;
                 interp_map["t"] = t_interp;
-                interp_map["cx"] = pixel.x();
-                interp_map["cy"] = pixel.y();
-                interp_map["x"] = object_relative_pos[0];
-                interp_map["y"] = object_relative_pos[1];
+                interp_map["x"] = pixel.x();
+                interp_map["y"] = pixel.y();
                 interp_map["z"] = object_relative_pos[2];
                 interp_map["qw"] = object_relative_q.w();
                 interp_map["qx"] = object_relative_q.x();
@@ -374,29 +419,37 @@ int main(int argc, char **argv) {
                 interp_map["qz"] = object_relative_q.z();
                 optitrack_json["data"][name].push_back(interp_map);
 
-                if (i * FRAME_DELTA > SAVE_FRAMES_AFTER && i * FRAME_DELTA < frame_max_time - start_timestamp) {
-                    std::array<float, 9> ahrs {interp_map["cx"], interp_map["cy"], interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
+                if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA < frame_max_time - start_timestamp) {
+                    std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
                     ahrs_matrix[name].push_back(ahrs);
                     last_optitrack_frame_time = i * FRAME_DELTA;
-                }
 
+                    if (first_optitrack_frame_time == 0) {
+                        first_optitrack_frame_time = i * FRAME_DELTA;
+                    }
+                }
             }
         }
     }
     object_output << optitrack_json;
 
     for (auto v : ahrs_matrix) {
-        frame_file.writeDataset(v.second, v.first, {v.second.size(), 9});
+        frame_file.writeDataset(v.second, v.first, {v.second.size(), 7});
     }
 
 
     printf("last_event_frame_time %u\n", last_event_frame_time);
     printf("last_optitrack_frame_time %u\n", last_optitrack_frame_time);
-    printf("optitrack max time %u\n", optitrack_max_time);
-    printf("event max time %u\n", event_max_time);
-    printf("frame_max_time %u\n", frame_max_time);
-    printf("start_timestamp %u\n", start_timestamp);
+    printf("first_event_frame_time %u\n", first_event_frame_time);
+    printf("first_optitrack_frame_time %u\n", first_optitrack_frame_time);
+
+
+    printf("num event frames %u\n", frame_index);
+    printf("num optitrack frames %u\n", (*ahrs_matrix.begin()).second.size());
     if (last_event_frame_time / 1000 != last_optitrack_frame_time / 1000) {
-        printf("Something is probably wrong with the frames\n");
+        printf("End time is different\n");
+    }
+    if (first_event_frame_time / 1000 != first_optitrack_frame_time / 1000) {
+        printf("Start time is different\n");
     }
 }
