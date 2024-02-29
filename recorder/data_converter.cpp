@@ -30,8 +30,8 @@
 
 #define FRAME_DELTA 1000
 
-#define SAVE_FRAMES_AFTER 15000000
-#define SKIP_ENDING 15000000
+#define SAVE_FRAMES_AFTER 10000000
+#define SKIP_ENDING 10000000
 
 using json = nlohmann::json;
 
@@ -259,6 +259,7 @@ int main(int argc, char **argv) {
                     .valid = true,
                     .polarity = entry.p ? true : false,
                 };
+                // std::cout << (entry.p ? "true" : "false") << (int) entry.p << std::endl;
                 if (first_event == 0) {
                     first_event = t_adjusted;
                 }
@@ -403,7 +404,7 @@ int main(int argc, char **argv) {
                     interpolate(t_old, old_object_q.z(), t_future, future_object_q.z(), t_interp),
                 };
 
-                Eigen::Vector3<double> object_relative_pos = interp_camera_q.inverse() * (interp_object_pos - interp_camera_pos);
+                Eigen::Vector3<double> object_relative_pos = interp_camera_q.inverse().normalized() * (interp_object_pos - interp_camera_pos);
                 Eigen::Quaternion<double> object_relative_q = interp_camera_q.inverse() * interp_object_q;
 
                 Eigen::Vector2<double> pixel = position_to_pixel(object_relative_pos);

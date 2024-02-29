@@ -111,15 +111,18 @@ void populate_id_to_polygons() {
         {-rectangle_width / 2.0, 0, -rectengle_height / 2.0},
     };
 
+
+    float offset_x = 0.28 / 2 - 0.022154 - 0.05;
+    float offset_z = 0.22 / 2 + 0.1 + 0.05;
     id_to_polygon[BLOB0] = {
-        {-0.14, 0, 0.08},
-        {-0.14, 0, -0.17},
-        {0.14, 0, -0.17},
-        {0.14, 0, 0.05},
-        {0.09, 0, 0.095},
-        {0.09, 0, 0.195},
-        {0.07, 0, 0.195},
-        {-0.14, 0, 0.08},
+        {offset_x, 0, offset_z},
+        {offset_x + 0.022154, 0, offset_z},
+        {offset_x + 0.022154, 0, offset_z - 0.1},
+        {offset_x + 0.022154 + 0.05, 0, offset_z - 0.05 - 0.1},
+        {offset_x + 0.022154 + 0.05, 0, offset_z - 0.05 - 0.1 - 0.22},
+        {offset_x + 0.022154 + 0.05 - 0.28, 0, offset_z - 0.05 - 0.1 - 0.22},
+        {offset_x + 0.022154 + 0.05 - 0.28, 0, offset_z - 0.05 - 0.1 - 0.22 + 0.25},
+        {offset_x, 0, offset_z},
     };
 
     // circle
