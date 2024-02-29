@@ -408,7 +408,7 @@ int main(int argc, char **argv) {
                 Eigen::Quaternion<double> object_relative_q = interp_camera_q.inverse() * interp_object_q;
 
                 Eigen::Vector2<double> pixel = position_to_pixel(object_relative_pos);
-                // pixel = undistort_pixel(pixel);
+                pixel = undistort_pixel(pixel);
                 std::map<std::string, float> interp_map;
                 interp_map["t"] = t_interp;
                 interp_map["x"] = pixel.x();
