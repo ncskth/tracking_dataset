@@ -285,20 +285,27 @@ int main(int argc, char **argv) {
                             if (event_frame[x][y].first > 0) {
                                 struct frame_key key;
                                 key.n = frame_index;
-                                key.x = x;
-                                key.y = y;
+                                Eigen::Vector2<double> undistorted = undistort_pixel({x, y});
+                                key.x = undistorted.x();
+                                key.y = undistorted.y();
                                 key.p = 0;
-                                event_frame_keys.push_back(key);
-                                event_frame_values.push_back(event_frame[x][y].first);
+
+                                if (key.x >= 0 and key.x < WINDOW_WIDTH and key.y >= 0 and key.y < WINDOW_HEIGHT) {
+                                    event_frame_keys.push_back(key);
+                                    event_frame_values.push_back(event_frame[x][y].first);
+                                }
                             }
                             if (event_frame[x][y].second > 0) {
                                 struct frame_key key;
                                 key.n = frame_index;
-                                key.x = x;
-                                key.y = y;
+                                Eigen::Vector2<double> undistorted = undistort_pixel({x, y});
+                                key.x = undistorted.x();
+                                key.y = undistorted.y();
                                 key.p = 1;
-                                event_frame_keys.push_back(key);
-                                event_frame_values.push_back(event_frame[x][y].second);
+                                if (key.x >= 0 and key.x < WINDOW_WIDTH and key.y >= 0 and key.y < WINDOW_HEIGHT) {
+                                    event_frame_keys.push_back(key);
+                                    event_frame_values.push_back(event_frame[x][y].second);
+                                }
                             }
                             event_frame[x][y] = {0, 0};
                         }
@@ -349,8 +356,6 @@ int main(int argc, char **argv) {
                 .qz = header.q_z,
             };
             optitrack_data[header.object_id].push_back(object);
-            // std::cout << "opti" << t_adjusted / 1000 << std::endl;
-
         }
         else {
             return -2;
@@ -404,6 +409,7 @@ int main(int argc, char **argv) {
                     interpolate(t_old, old_camera_q.y(), t_future, future_camera_q.y(), t_interp),
                     interpolate(t_old, old_camera_q.z(), t_future, future_camera_q.z(), t_interp),
                 };
+                interp_camera_q.normalize();
 
                 Eigen::Vector3<double> interp_object_pos = interpolate(t_old, old_object_pos, t_future, future_object_pos, t_interp);
                 Eigen::Quaternion<double> interp_object_q =  {
@@ -412,12 +418,12 @@ int main(int argc, char **argv) {
                     interpolate(t_old, old_object_q.y(), t_future, future_object_q.y(), t_interp),
                     interpolate(t_old, old_object_q.z(), t_future, future_object_q.z(), t_interp),
                 };
+                interp_object_q.normalize();
 
                 Eigen::Vector3<double> object_relative_pos = interp_camera_q.inverse().normalized() * (interp_object_pos - interp_camera_pos);
-                Eigen::Quaternion<double> object_relative_q = interp_camera_q.inverse() * interp_object_q;
+                Eigen::Quaternion<double> object_relative_q = interp_camera_q.inverse().normalized() * interp_object_q;
 
                 Eigen::Vector2<double> pixel = position_to_pixel(object_relative_pos);
-                pixel = undistort_pixel(pixel);
                 std::map<std::string, float> interp_map;
                 interp_map["t"] = t_interp;
                 interp_map["px"] = pixel.x();
@@ -429,6 +435,24 @@ int main(int argc, char **argv) {
                 interp_map["qx"] = object_relative_q.x();
                 interp_map["qy"] = object_relative_q.y();
                 interp_map["qz"] = object_relative_q.z();
+
+                // interp_map["camera_qw"] = interp_camera_q.w();
+                // interp_map["camera_qx"] = interp_camera_q.x();
+                // interp_map["camera_qy"] = interp_camera_q.y();
+                // interp_map["camera_qz"] = interp_camera_q.z();
+                // interp_map["camera_x"] = interp_camera_pos.x();
+                // interp_map["camera_y"] = interp_camera_pos.y();
+                // interp_map["camera_z"] = interp_camera_pos.z();
+
+                // interp_map["object_qw"] = interp_object_q.w();
+                // interp_map["object_qx"] = interp_object_q.x();
+                // interp_map["object_qy"] = interp_object_q.y();
+                // interp_map["object_qz"] = interp_object_q.z();
+                // interp_map["object_x"] = interp_object_pos.x();
+                // interp_map["object_y"] = interp_object_pos.y();
+                // interp_map["object_z"] = interp_object_pos.z();
+
+
                 optitrack_json["data"][name].push_back(interp_map);
 
                 if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA < frame_max_time - start_timestamp) {
