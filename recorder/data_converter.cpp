@@ -119,8 +119,8 @@ int main(int argc, char **argv) {
 
     std::vector<struct frame_key> init_frame_keys;
     std::vector<uint8_t> init_frame_values;
-
-
+    std::vector<uint32_t> frame_start_indexes;
+    uint32_t current_frame_start_index = 0;
 
     h5pp::hid::h5t H5_KEY_TYPE = H5Tcreate(H5T_COMPOUND, sizeof(frame_key));
     H5Tinsert(H5_KEY_TYPE, "n", HOFFSET(frame_key, n), H5T_NATIVE_UINT32);
@@ -137,7 +137,6 @@ int main(int argc, char **argv) {
     options.h5Layout = H5D_CHUNKED;
     options.linkPath = "frame_keys";
     frame_file.writeDataset(init_frame_keys, options);
-    // frame_file.writeDataset(init_frame_keys, "frame_keys", H5_KEY_TYPE, H5D_CHUNKED, {0}, {10000});
     frame_file.writeDataset(init_frame_values, "frame_values", H5D_CHUNKED, {0}, {10000});
 
     FILE *input_file = fopen(argv[1], "r");
@@ -223,6 +222,7 @@ int main(int argc, char **argv) {
     uint32_t last_event = 0;
     size_t event_count = 0;
 
+
     int aedat_header_offset = AEDAT4::save_header(event_output);
     uint32_t last_event_frame_time = 0;
     uint32_t first_event_frame_time = 0;
@@ -266,6 +266,10 @@ int main(int argc, char **argv) {
                 event_count++;
                 last_event = t_adjusted;
                 events.push_back(formal_event);
+
+                // if (rand() % 1000 == 0) {
+                //     std::cout << "event" << t_adjusted / 1000 << std::endl;
+                // }
                 //optitrack interpolation misses the last frame
                 if (t_adjusted >= frame_index * FRAME_DELTA + SAVE_FRAMES_AFTER
                 && t_adjusted < frame_max_time - start_timestamp) {
@@ -299,8 +303,10 @@ int main(int argc, char **argv) {
                             event_frame[x][y] = {0, 0};
                         }
                     }
+                    frame_start_indexes.push_back(current_frame_start_index);
                     frame_file.appendToDataset(event_frame_keys, "frame_keys", 0, {event_frame_keys.size()});
                     frame_file.appendToDataset(event_frame_values, "frame_values", 0, {event_frame_values.size()});
+                    current_frame_start_index += event_frame_keys.size();
                     frame_index++;
                     last_event_frame_time = t_adjusted;
                     if (t_adjusted - last_status_print > 1000000) {
@@ -343,6 +349,8 @@ int main(int argc, char **argv) {
                 .qz = header.q_z,
             };
             optitrack_data[header.object_id].push_back(object);
+            // std::cout << "opti" << t_adjusted / 1000 << std::endl;
+
         }
         else {
             return -2;
@@ -350,10 +358,11 @@ int main(int argc, char **argv) {
     }
 
     AEDAT4::save_footer(event_output, aedat_header_offset, first_event, last_event, event_count);
+    frame_file.writeDataset(frame_start_indexes, "frame_start_indexes");
     event_output.flush();
     event_output.close();
 
-    std::map<std::string, std::vector<std::array<float, 7>>> ahrs_matrix;
+    std::map<std::string, std::vector<std::array<float, 9>>> ahrs_matrix;
 
 
     json optitrack_json;
@@ -411,8 +420,10 @@ int main(int argc, char **argv) {
                 pixel = undistort_pixel(pixel);
                 std::map<std::string, float> interp_map;
                 interp_map["t"] = t_interp;
-                interp_map["x"] = pixel.x();
-                interp_map["y"] = pixel.y();
+                interp_map["px"] = pixel.x();
+                interp_map["py"] = pixel.y();
+                interp_map["x"] = object_relative_pos[0];
+                interp_map["y"] = object_relative_pos[1];
                 interp_map["z"] = object_relative_pos[2];
                 interp_map["qw"] = object_relative_q.w();
                 interp_map["qx"] = object_relative_q.x();
@@ -421,7 +432,7 @@ int main(int argc, char **argv) {
                 optitrack_json["data"][name].push_back(interp_map);
 
                 if (i * FRAME_DELTA >= SAVE_FRAMES_AFTER && i * FRAME_DELTA < frame_max_time - start_timestamp) {
-                    std::array<float, 7> ahrs {interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
+                    std::array<float, 9> ahrs {interp_map["px"], interp_map["py"], interp_map["x"], interp_map["y"], interp_map["z"], interp_map["qw"], interp_map["qx"], interp_map["qy"], interp_map["qz"]};
                     ahrs_matrix[name].push_back(ahrs);
                     last_optitrack_frame_time = i * FRAME_DELTA;
 
@@ -435,7 +446,7 @@ int main(int argc, char **argv) {
     object_output << optitrack_json;
 
     for (auto v : ahrs_matrix) {
-        frame_file.writeDataset(v.second, v.first, {v.second.size(), 7});
+        frame_file.writeDataset(v.second, v.first, {v.second.size(), 9});
     }
 
 
