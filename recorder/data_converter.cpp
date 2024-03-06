@@ -55,7 +55,7 @@ struct frame_key {
 };
 
 template <typename T>
-T interpolate(float start_time, T start_value, float end_time, T end_value, float wanted_time) {
+T interpolate(double start_time, T start_value, double end_time, T end_value, double wanted_time) {
     return (wanted_time - start_time) / (end_time - start_time) * (end_value - start_value) + start_value;
 }
 
@@ -401,7 +401,7 @@ int main(int argc, char **argv) {
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
             for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
-                int t_interp = t_future;
+                int t_interp = i * FRAME_DELTA;
                 Eigen::Vector3<double> interp_camera_pos = interpolate(t_old, old_camera_pos, t_future, future_camera_pos, t_interp);
                 Eigen::Quaternion<double> interp_camera_q = {
                     interpolate(t_old, old_camera_q.w(), t_future, future_camera_q.w(), t_interp),
