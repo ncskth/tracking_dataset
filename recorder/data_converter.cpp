@@ -372,6 +372,7 @@ int main(int argc, char **argv) {
 
     json optitrack_json;
     int optitrack_track_count = (*optitrack_data.begin()).second.size();
+    uint32_t poopy;
     for (int row = 1; row < optitrack_track_count; row++) {
         Eigen::Vector3<double> future_camera_pos;
         Eigen::Quaternion<double> future_camera_q;
@@ -387,7 +388,6 @@ int main(int argc, char **argv) {
             old_camera_pos = {column.second[row - 1].x, column.second[row - 1].y, column.second[row - 1].z};
             old_camera_q = {column.second[row - 1].qw, column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz};
         }
-
         for (auto column : optitrack_data) {
             if (column.first == CAMERA0) {
                 continue;
@@ -400,7 +400,11 @@ int main(int argc, char **argv) {
             int t_old = column.second[row - 1].t;
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
-            for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
+            for (int i = t_old / FRAME_DELTA + 1; i <= t_future / FRAME_DELTA; i++) {
+                if (i - poopy != 1) {
+                    printf("oh no %d %d\n", i);
+                }
+                poopy = i;
                 int t_interp = i * FRAME_DELTA;
                 Eigen::Vector3<double> interp_camera_pos = interpolate(t_old, old_camera_pos, t_future, future_camera_pos, t_interp);
                 Eigen::Quaternion<double> interp_camera_q = {
