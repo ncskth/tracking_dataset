@@ -10,6 +10,8 @@
 
 std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
 
+std::map<int, std::vector<Eigen::Vector3<double>>> id_to_extremes;
+
 // Camera matrix and distortion coefficients
 cv::Mat cameraMatrix = (cv::Mat_<double>(3, 3) << CAMERA_MATRIX_INIT_CV);
 cv::Mat distCoeffs = (cv::Mat_<double>(1, 5) << UNDISTORT_K1, UNDISTORT_K2, UNDISTORT_P1, UNDISTORT_P2, UNDISTORT_K3);
@@ -125,6 +127,97 @@ void populate_id_to_polygons() {
         {offset_x, 0, offset_z},
     };
 
+
+    float blade_length = 0.29;
+    offset_x = -0.18;
+    offset_z = -0;
+    id_to_polygon[SAW] = {
+        {offset_x, 0, offset_z},
+        {offset_x, 0, offset_z - 0.03},
+        {offset_x + blade_length, 0, offset_z - 0.03},
+        {offset_x + blade_length, 0, offset_z - 0.03},
+        {offset_x + blade_length, 0, offset_z - 0.03 + 0.097},
+        {offset_x, 0, offset_z},
+    };
+
+
+    float saw_handle_thickness = 0.01;
+    id_to_extremes[SAW] = {
+        {offset_x, 0, offset_z},
+        {offset_x, 0, offset_z - 0.03},
+        {offset_x + blade_length, 0, offset_z - 0.03},
+        {offset_x + blade_length, 0, offset_z - 0.03},
+        {offset_x + blade_length, 0, offset_z - 0.03 + 0.097},
+        {offset_x, 0, offset_z},
+
+        {offset_x + blade_length, saw_handle_thickness, offset_z - 0.03},
+        {offset_x + blade_length + 0.085, saw_handle_thickness, offset_z - 0.03},
+        {offset_x + blade_length + 0.085 + 0.05, saw_handle_thickness, offset_z - 0.03 + 0.085},
+        {offset_x + blade_length + 0.043, saw_handle_thickness, offset_z - 0.03 + 0.105},
+
+        {offset_x + blade_length, -saw_handle_thickness, offset_z - 0.03},
+        {offset_x + blade_length + 0.085, -saw_handle_thickness, offset_z - 0.03},
+        {offset_x + blade_length + 0.085 + 0.05, -saw_handle_thickness, offset_z - 0.03 + 0.085},
+        {offset_x + blade_length + 0.043, -saw_handle_thickness, offset_z - 0.03 + 0.105},
+    };
+
+    offset_x = -0;
+    offset_z = 0.014;
+    float hammer_total_width = 0.1;
+    float hammer_thinnering = 0.002;
+    float hammer_dip_right = 0.03;
+    float hammer_front_length = 0.02;
+    float hammer_front_thickness = 0.024;
+    float hammer_stem_thickness = 0.013;
+    float hammer_stem_length = 0.097;
+    id_to_polygon[HAMMER] = {
+        {offset_x, 0, offset_z},
+        {offset_x + hammer_dip_right, 0, offset_z},
+        {offset_x + hammer_dip_right, 0, offset_z - hammer_thinnering},
+        {offset_x + hammer_dip_right + hammer_front_length, 0, offset_z - hammer_thinnering},
+        {offset_x + hammer_dip_right + hammer_front_length, 0, offset_z - hammer_thinnering - hammer_front_thickness},
+        {offset_x + hammer_stem_thickness / 2, 0, offset_z - hammer_thinnering - hammer_front_thickness},
+        {offset_x + hammer_stem_thickness / 2, 0, offset_z - hammer_thinnering - hammer_front_thickness - hammer_stem_length},
+        {offset_x - hammer_stem_thickness / 2, 0, offset_z - hammer_thinnering - hammer_front_thickness - hammer_stem_length},
+        {offset_x - hammer_stem_thickness / 2, 0, offset_z - hammer_thinnering - hammer_front_thickness},
+        {offset_x, 0, offset_z},
+    };
+
+    float plier_top_edge_to_clip_top = 0.018;
+    float plier_top_width = 0.055;
+    float plier_bot_width = 0.110;
+    float plier_length = 0.083;
+    offset_x = 0;
+    offset_z = -plier_top_edge_to_clip_top;
+    id_to_polygon[PLIER] = {
+        {offset_x - plier_top_width / 2, 0, offset_z},
+        {offset_x + plier_top_width / 2, 0, offset_z},
+        {offset_x + plier_bot_width / 2, 0, offset_z - plier_length},
+        {offset_x - plier_bot_width / 2, 0, offset_z - plier_length},
+        {offset_x - plier_top_width / 2, 0, offset_z},
+    };
+
+    float screwdriver_thickness = 0.009;
+    float screwdriver_length = 0.2;
+    offset_x = -0.0045;
+    offset_z = 0.1;
+    id_to_polygon[SCREWDRIVER] = {
+        {offset_x, 0, offset_z},
+        {offset_x + screwdriver_thickness, 0, offset_z},
+        {offset_x + screwdriver_thickness, 0, offset_z - screwdriver_length},
+        {offset_x, 0, offset_z - screwdriver_length},
+        {offset_x, 0, offset_z},
+    };
+
+    offset_x = -0;
+    offset_z = 0.014;
+    id_to_polygon[FLATHAMMER] = {
+        {offset_x, 0, offset_z},
+    };
+
+
+
+
     // circle
     const double circle_radius = 0.292/2;
     int iterations = 150;
@@ -135,4 +228,19 @@ void populate_id_to_polygons() {
             cos(2 * PI * i / iterations) * circle_radius,
         });
     }
+
+
+    float lower_layer = -0.012;
+    float upper_layer = 0.003;
+    id_to_extremes[PLIER] = {
+        {-23 / 1000.0, lower_layer, 35 / 1000.0},
+        {23 / 1000.0, lower_layer, 35 / 1000.0},
+        {-55 / 1000.0, lower_layer, -101 / 1000.0},
+        {55 / 1000.0, lower_layer, -101 / 1000.0},
+
+        {-23 / 1000.0, upper_layer, 35 / 1000.0},
+        {23 / 1000.0, upper_layer, 35 / 1000.0},
+        {-55 / 1000.0, upper_layer, -101 / 1000.0},
+        {55 / 1000.0, upper_layer, -101 / 1000.0},
+    };
 }

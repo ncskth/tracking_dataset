@@ -94,6 +94,12 @@ void init_drawer(struct flow_struct & data) {
             SDL_RenderDrawLine(renderer, center.x() - cross_size, center.y(), center.x() + cross_size, center.y());
             SDL_RenderDrawLine(renderer, center.x(), center.y() - cross_size, center.x(), center.y() + cross_size);
 
+            float box_minx = 13213213;
+            float box_miny = 13213213;
+            float box_maxx = -21321312;
+            float box_maxy = -2313213;
+
+
             //render 3d
             std::vector<Eigen::Vector3<double>> points = id_to_polygon.at(object.first);
             bool first = true;
@@ -114,8 +120,50 @@ void init_drawer(struct flow_struct & data) {
                 SDL_RenderDrawLine(renderer, prev_pixel.x(), prev_pixel.y(), current_pixel.x(), current_pixel.y());
                 SDL_SetRenderDrawColor(renderer, 0, 128, 255, 255); // set color after so it's different for the first line
                 prev_pixel = current_pixel;
+
+                box_minx = fmin(current_pixel.x(), box_minx);
+                box_miny = fmin(current_pixel.y(), box_miny);
+                box_maxx = fmax(current_pixel.x(), box_maxx);
+                box_maxy = fmax(current_pixel.y(), box_maxy);
             }
+
+
+            // iterate through extreme points (if they exist, otherwise use values calculated from polygon)
+            if (id_to_extremes.count(object.first)) {
+                // printf("big chungus\n");
+                box_minx = 13213213;
+                box_miny = 13213213;
+                box_maxx = -21321312;
+                box_maxy = -2313213;
+                for (auto current_point : id_to_extremes.at(object.first)) {
+                    Eigen::Vector2<double> current_pixel;
+                    current_point = object.second.attitude * current_point;
+                    current_point += object.second.position - camera_object.position;
+                    current_point = camera_object.attitude.inverse().normalized() * current_point;
+                    current_pixel = position_to_pixel(current_point, true);
+
+                    SDL_SetRenderDrawColor(renderer, 200, 128, 128, 255);
+                    const int cross_size = 5;
+                    SDL_RenderDrawLine(renderer, current_pixel.x() - cross_size, current_pixel.y(), current_pixel.x() + cross_size, current_pixel.y());
+                    SDL_RenderDrawLine(renderer, current_pixel.x(), current_pixel.y() - cross_size, current_pixel.x(), current_pixel.y() + cross_size);
+
+
+                    box_minx = fmin(current_pixel.x(), box_minx);
+                    box_miny = fmin(current_pixel.y(), box_miny);
+                    box_maxx = fmax(current_pixel.x(), box_maxx);
+                    box_maxy = fmax(current_pixel.y(), box_maxy);
+                }
+            }
+
+            //draw box
+            SDL_SetRenderDrawColor(renderer, 0, 255, 0, 255);
+            SDL_RenderDrawLine(renderer, box_minx, box_miny, box_maxx, box_miny);
+            SDL_RenderDrawLine(renderer, box_maxx, box_miny, box_maxx, box_maxy);
+            SDL_RenderDrawLine(renderer, box_maxx, box_maxy, box_minx, box_maxy);
+            SDL_RenderDrawLine(renderer, box_minx, box_maxy, box_minx, box_miny);
         }
+
+
 
 
         // present frame

@@ -22,6 +22,7 @@
                               0, 0, 1
 
 extern std::map<int, std::vector<Eigen::Vector3<double>>> id_to_polygon;
+extern std::map<int, std::vector<Eigen::Vector3<double>>> id_to_extremes;
 
 Eigen::Vector2<double> position_to_pixel(Eigen::Vector3<double> pos, bool mirror = false);
 
