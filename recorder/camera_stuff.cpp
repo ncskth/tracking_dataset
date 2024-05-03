@@ -230,8 +230,8 @@ void populate_id_to_polygons() {
     }
 
 
-    float lower_layer = -0.012;
-    float upper_layer = 0.003;
+    float lower_layer = -0.0095;
+    float upper_layer = 0.0055;
     id_to_extremes[PLIER] = {
         {-23 / 1000.0, lower_layer, 35 / 1000.0},
         {23 / 1000.0, lower_layer, 35 / 1000.0},
