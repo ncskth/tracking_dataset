@@ -167,9 +167,11 @@ void populate_id_to_polygons() {
     float hammer_thinnering = 0.002;
     float hammer_dip_right = 0.03;
     float hammer_front_length = 0.02;
+    float hammer_back_length = 0.05;
     float hammer_front_thickness = 0.024;
     float hammer_stem_thickness = 0.013;
     float hammer_stem_length = 0.097;
+    float hammer_spike_thing_down = 0.011;
     id_to_polygon[HAMMER] = {
         {offset_x, 0, offset_z},
         {offset_x + hammer_dip_right, 0, offset_z},
@@ -180,6 +182,7 @@ void populate_id_to_polygons() {
         {offset_x + hammer_stem_thickness / 2, 0, offset_z - hammer_thinnering - hammer_front_thickness - hammer_stem_length},
         {offset_x - hammer_stem_thickness / 2, 0, offset_z - hammer_thinnering - hammer_front_thickness - hammer_stem_length},
         {offset_x - hammer_stem_thickness / 2, 0, offset_z - hammer_thinnering - hammer_front_thickness},
+        {offset_x - hammer_stem_thickness / 2 - hammer_back_length, 0, offset_z - hammer_thinnering - hammer_front_thickness - hammer_spike_thing_down},
         {offset_x, 0, offset_z},
     };
 
