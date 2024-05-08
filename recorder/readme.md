@@ -32,7 +32,7 @@ to run
 
 
 ## processed output
-The data converter outputs 4 files from the raw recordings
+The data converter outputs 3 files from the raw recordings
 
 1. A JSON file with timestamps, positions and orientations
 1. An AEDAT4 file with timestamps & undistorted events
