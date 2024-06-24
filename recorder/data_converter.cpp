@@ -118,6 +118,11 @@ double quaternion_angle_distance(const Eigen::Quaterniond& q1, const Eigen::Quat
 }
 
 Eigen::Quaternion<double> get_median_quaternion(std::vector<optitrack_object> arr, int index_to_get, int width) {
+    if (index_to_get < width || index_to_get + width >= arr.size()) {
+        auto a = arr[index_to_get];
+        return {a.qw, a.qx, a.qy, a.qz};
+    }
+
     std::vector<std::pair<int, int>> arr_indexed;
     auto a = arr[index_to_get];
     Eigen::Quaternion<double> q_a = { a.qw, a.qx, a.qy, a.qz};
@@ -137,6 +142,11 @@ Eigen::Quaternion<double> get_median_quaternion(std::vector<optitrack_object> ar
 }
 
 Eigen::Vector3<double> get_median_position(std::vector<optitrack_object> arr, int index_to_get, int width) {
+    if (index_to_get < width || index_to_get + width >= arr.size()) {
+        auto a = arr[index_to_get];
+        return {a.x, a.y, a.z};
+    }
+
     std::vector<std::pair<int, int>> arr_indexed;
     auto a = arr[index_to_get];
     Eigen::Vector3<double> p_a = {a.x, a.y, a.z};
@@ -462,7 +472,7 @@ int main(int argc, char **argv) {
             int t_old = column.second[row - 1].t;
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
-            for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
+            for (int i = t_old / FRAME_DELTA + 1; i <= t_future / FRAME_DELTA; i++) {
                 if (i - poopy != 1) {
                     printf("oh no %d %d\n", i);
                     continue;
