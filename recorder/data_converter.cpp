@@ -89,9 +89,55 @@ std::string optitrack_id_to_name(enum optitrack_ids id) {
             return std::string("triangle");
         case BLOB0:
             return std::string("blob");
+        case PLIER:
+            return std::string("plier");
+        case HAMMER:
+            return std::string("hammer");
+        case SAW:
+            return std::string("saw");
+
         default:
             return std::string("lol wut");
     }
+}
+
+double quaternion_angle_distance(const Eigen::Quaterniond& q1, const Eigen::Quaterniond& q2) {
+    Eigen::Quaterniond norm_q1 = q1.normalized();
+    Eigen::Quaterniond norm_q2 = q2.normalized();
+
+    // Compute the dot product
+    double dot_product = norm_q1.dot(norm_q2);
+
+    // Clamp the dot product to be within the valid range for acos
+    dot_product = std::max(-1.0, std::min(1.0, dot_product));
+
+    // Compute the angle
+    double angle = 2.0 * std::acos(std::abs(dot_product));
+
+    return angle;
+}
+
+Eigen::Quaternion<double> get_median_quaternion(std::vector<optitrack_object> arr, int index_to_get, int width) {
+    std::vector<std::pair<int, int>> arr_indexed;
+    auto a = arr[index_to_get];
+    Eigen::Quaternion<double> q_a = { a.qw, a.qx, a.qy, a.qz};
+    for (int i = index_to_get - width; i < index_to_get + width + 1; i++) {
+        auto b = arr[i];
+        Eigen::Quaternion<double> q_b = { b.qw, b.qx, b.qy, b.qz};
+        double distance = quaternion_angle_distance(q_a, q_b);
+        arr_indexed.push_back({distance, i});
+    }
+    std::sort(arr_indexed.begin(), arr_indexed.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        return a.first < b.first;
+    });
+    int median_i = arr_indexed[width].second;
+    auto m = arr[median_i];
+    Eigen::Quaternion<double> q_m = { m.qw, m.qx, m.qy, m.qz};
+    return q_m;
+}
+
+void get_median_position() {
+
 }
 
 int main(int argc, char **argv) {
@@ -400,9 +446,10 @@ int main(int argc, char **argv) {
             int t_old = column.second[row - 1].t;
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
-            for (int i = t_old / FRAME_DELTA + 1; i <= t_future / FRAME_DELTA; i++) {
+            for (int i = t_old / FRAME_DELTA; i <= t_future / FRAME_DELTA; i++) {
                 if (i - poopy != 1) {
                     printf("oh no %d %d\n", i);
+                    continue;
                 }
                 poopy = i;
                 int t_interp = i * FRAME_DELTA;
