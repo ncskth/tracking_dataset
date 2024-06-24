@@ -136,8 +136,23 @@ Eigen::Quaternion<double> get_median_quaternion(std::vector<optitrack_object> ar
     return q_m;
 }
 
-void get_median_position() {
-
+Eigen::Vector3<double> get_median_position(std::vector<optitrack_object> arr, int index_to_get, int width) {
+    std::vector<std::pair<int, int>> arr_indexed;
+    auto a = arr[index_to_get];
+    Eigen::Vector3<double> p_a = {a.x, a.y, a.z};
+    for (int i = index_to_get - width; i < index_to_get + width + 1; i++) {
+        auto b = arr[i];
+        Eigen::Vector3<double> p_b = {b.x, b.y, b.z};
+        double distance = (p_a - p_b).norm();
+        arr_indexed.push_back({distance, i});
+    }
+    std::sort(arr_indexed.begin(), arr_indexed.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+        return a.first < b.first;
+    });
+    int median_i = arr_indexed[width].second;
+    auto m = arr[median_i];
+    Eigen::Vector3<double> p_m = {m.x, m.y, m.z};
+    return p_m;
 }
 
 int main(int argc, char **argv) {
@@ -429,20 +444,21 @@ int main(int argc, char **argv) {
             if (column.first != CAMERA0) {
                 continue;
             }
-            future_camera_pos = {column.second[row].x, column.second[row].y, column.second[row].z};
-            future_camera_q = {column.second[row].qw, column.second[row].qx, column.second[row].qy, column.second[row].qz};
-            old_camera_pos = {column.second[row - 1].x, column.second[row - 1].y, column.second[row - 1].z};
-            old_camera_q = {column.second[row - 1].qw, column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz};
+            future_camera_pos = get_median_position(column.second, row, 2);
+            future_camera_q = get_median_quaternion(column.second, row, 2);
+            old_camera_pos = get_median_position(column.second, row - 1, 2);
+            old_camera_q = get_median_quaternion(column.second, row - 1, 2);
         }
+
         for (auto column : optitrack_data) {
             if (column.first == CAMERA0) {
                 continue;
             }
-            Eigen::Vector3<double> future_object_pos = {column.second[row].x, column.second[row].y, column.second[row].z};
-            Eigen::Quaternion<double> future_object_q = {column.second[row].qw, column.second[row].qx, column.second[row].qy, column.second[row].qz};
+            Eigen::Vector3<double> future_object_pos = get_median_position(column.second, row, 2);
+            Eigen::Quaternion<double> future_object_q = get_median_quaternion(column.second, row, 2);
             int t_future = column.second[row].t;
-            Eigen::Vector3<double> old_object_pos = {column.second[row - 1].x, column.second[row - 1].y, column.second[row - 1].z};
-            Eigen::Quaternion<double> old_object_q = {column.second[row - 1].qw, column.second[row - 1].qx, column.second[row - 1].qy, column.second[row - 1].qz};
+            Eigen::Vector3<double> old_object_pos = get_median_position(column.second, row - 1, 2);
+            Eigen::Quaternion<double> old_object_q = get_median_quaternion(column.second, row - 1, 2);
             int t_old = column.second[row - 1].t;
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
