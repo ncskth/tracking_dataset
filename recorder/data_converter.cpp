@@ -462,7 +462,7 @@ int main(int argc, char **argv) {
             int t_old = column.second[row - 1].t;
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
-            for (int i = t_old / FRAME_DELTA; i <= t_future / FRAME_DELTA; i++) {
+            for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
                 if (i - poopy != 1) {
                     printf("oh no %d %d\n", i);
                     continue;
