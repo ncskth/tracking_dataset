@@ -475,7 +475,6 @@ int main(int argc, char **argv) {
             for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
                 if (i - poopy != 1) {
                     printf("oh no %d %d\n", i);
-                    continue;
                 }
                 poopy = i;
                 int t_interp = i * FRAME_DELTA;
