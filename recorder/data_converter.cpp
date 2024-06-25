@@ -97,6 +97,8 @@ std::string optitrack_id_to_name(enum optitrack_ids id) {
             return std::string("saw");
 
         default:
+            printf("Invalid optitrack ID\n");
+            assert(false);
             return std::string("lol wut");
     }
 }
