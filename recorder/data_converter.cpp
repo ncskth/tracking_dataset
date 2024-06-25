@@ -473,10 +473,10 @@ int main(int argc, char **argv) {
             std::string name = optitrack_id_to_name((enum optitrack_ids) column.first);
 
             for (int i = t_old / FRAME_DELTA; i < t_future / FRAME_DELTA; i++) {
-                if (i - poopy != 1) {
-                    printf("oh no %d %d\n", i);
-                }
-                poopy = i;
+                // if (i - poopy != 1) {
+                    // printf("oh no %d %d\n", i);
+                // }
+                // poopy = i;
                 int t_interp = i * FRAME_DELTA;
                 Eigen::Vector3<double> interp_camera_pos = interpolate(t_old, old_camera_pos, t_future, future_camera_pos, t_interp);
                 Eigen::Quaternion<double> interp_camera_q = {
