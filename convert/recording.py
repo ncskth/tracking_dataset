@@ -104,8 +104,13 @@ class EventRecording:
     def keys(self):
         return self.fp.keys()
 
-    def mask(self, shape, index):
-        return self.fp[shape + "_mask"][index]
+    @property
+    def mask_file(self):
+        return self.file.parent / "mask.h5"
+
+    @property
+    def bbox_file(self):
+        return self.file.parent / "bbox.h5"
 
     @property
     def poses(self):
