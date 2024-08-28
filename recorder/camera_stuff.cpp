@@ -246,4 +246,29 @@ void populate_id_to_polygons() {
         {-55 / 1000.0, upper_layer, -101 / 1000.0},
         {55 / 1000.0, upper_layer, -101 / 1000.0},
     };
+
+
+    float handle_length = 130 / 1000.0;
+    float left_top_length = 45 / 1000.0;
+    float right_top_length = 53 / 1000.0;
+    float top_bulb_width = 16 / 1000.0;
+    float indent = 5 / 1000.0;
+    float handle_to_left = 26 / 1000.0;
+    float handle_to_right = 30 / 1000.0;
+    float handle_width = 20 / 1000.0;
+    offset_x = handle_width / 2;
+    offset_z = -handle_length;
+    id_to_polygon[WRENCH] = {
+        {offset_x, 0, offset_z},
+        {offset_x, 0, offset_z + handle_length},
+        {offset_x + top_bulb_width, 0, offset_z + handle_length + left_top_length / 2},
+        {offset_x + indent, 0, offset_z + handle_length + left_top_length},
+        {offset_x, 0, offset_z + handle_length + handle_to_left},
+        {offset_x - handle_width, 0, offset_z + handle_length + handle_to_right},
+        {offset_x - handle_width + indent, 0, offset_z + handle_length + right_top_length},
+        {offset_x - handle_width - top_bulb_width, 0, offset_z + handle_length + right_top_length / 2},
+        {offset_x - handle_width, 0, offset_z + handle_length},
+        {offset_x - handle_width, 0, offset_z},
+        {offset_x, 0, offset_z},
+    };
 }

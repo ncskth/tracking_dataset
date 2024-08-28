@@ -25,6 +25,7 @@ enum optitrack_ids {
     OLD_RECT = 20,
     BLOB0 = 21,
     WAND = 22,
+    WRENCH = 23
 };
 
 enum data_type {
