@@ -1,11 +1,11 @@
+#!/usr/bin/env python
+
 import argparse
-from collections import defaultdict
 import time
-from threading import Thread
-import math
 import imageio
-import json
 import pathlib
+import logging
+from typing import Optional
 
 import scipy
 import matplotlib.pyplot as plt
@@ -16,7 +16,6 @@ import h5py
 import ray
 from ray.experimental import tqdm_ray
 import torch
-import torchvision
 
 import recording
 
@@ -64,116 +63,127 @@ def render_mask_and_bbox(pose, polygon, size=np.array((1280, 720))):
     return array, np.array([bbox.x0, bbox.y0, bbox.x1, bbox.y1])
 
 
-def add_bbox_to_file(file, size=np.array((1280, 720))):
+def add_bbox_to_file(fr, size=np.array((1280, 720))):
     mask_shapes = []
-    with recording.EventRecording(file) as fr:
-        n_frames = fr.frame_number
+    n_frames = fr.frame_number
 
-        # Masks
-        with h5py.File(fr.mask_file, mode="w") as mask_write:
-            masks = {}
+    # Masks
+    with h5py.File(fr.mask_file, mode="w") as mask_write:
+        masks = {}
+        for polygon in recording.POLYGONS.keys():
+            if polygon in fr.shapes_present:
+                masks[polygon] = mask_write.create_dataset(
+                    f"{polygon}_mask",
+                    (n_frames, *size),
+                    dtype=bool,
+                    compression="lzf",
+                )
+
+        # Bounding box
+        with h5py.File(fr.bbox_file, mode="w") as bbox_write:
+            bboxes = {}
             for polygon in recording.POLYGONS.keys():
                 if polygon in fr.shapes_present:
-                    masks[polygon] = mask_write.create_dataset(
-                        f"{polygon}_mask",
-                        (n_frames, *size),
-                        dtype=bool,
+                    bboxes[polygon] = bbox_write.create_dataset(
+                        f"{polygon}_bbox",
+                        (n_frames, 4),
+                        dtype="float32",
                         compression="lzf",
                     )
 
-            # Bounding box
-            with h5py.File(fr.bbox_file, mode="w") as bbox_write:
-                bboxes = {}
-                for polygon in recording.POLYGONS.keys():
-                    if polygon in fr.shapes_present:
-                        bboxes[polygon] = bbox_write.create_dataset(
-                            f"{polygon}_bbox",
-                            (n_frames, 4),
-                            dtype="float32",
-                            compression="lzf",
-                        )
+            # Render mask and bbox
+            poses = fr.poses
+            mask_shapes = [
+                s for s in recording.POLYGONS.keys() if s in fr.shapes_present
+            ]
 
-                # Render mask and bbox
-                poses = fr.poses
-                mask_shapes = [
-                    s for s in recording.POLYGONS.keys() if s in fr.shapes_present
-                ]
-
-                for polygon in mask_shapes:
-                    buffer = []
-                    buffer_size = 1024
-                    buffer_index = 0
-                    for i in tqdm_ray.tqdm(range(n_frames)):
-                        mask, bbox = render_mask_and_bbox(
-                            poses[polygon][i], recording.POLYGONS[polygon], size
-                        )
-                        bboxes[polygon][i] = bbox
-                        # Add masks in buffer to speed up compression
-                        if len(buffer) >= buffer_size:
-                            masks[polygon][
-                                buffer_index : buffer_index + len(buffer)
-                            ] = buffer
-                            buffer_index += len(buffer)
-                            buffer = []
-                        buffer.append(mask)
-                    # Add remaining buffered frames
-                    if len(buffer) > 0:
+            for polygon in mask_shapes:
+                buffer = []
+                buffer_size = 1024
+                buffer_index = 0
+                for i in tqdm_ray.tqdm(
+                    range(fr.frame_number),
+                    desc=f"{fr.file.stem} bbox {polygon}",
+                ):
+                    mask, bbox = render_mask_and_bbox(
+                        poses[polygon][i], recording.POLYGONS[polygon], size
+                    )
+                    bboxes[polygon][i] = bbox
+                    # Add masks in buffer to speed up compression
+                    if len(buffer) >= buffer_size:
                         masks[polygon][
                             buffer_index : buffer_index + len(buffer)
                         ] = buffer
+                        buffer_index += len(buffer)
+                        buffer = []
+                    buffer.append(mask)
+                # Add remaining buffered frames
+                if len(buffer) > 0:
+                    masks[polygon][buffer_index : buffer_index + len(buffer)] = buffer
 
 
-def generate_video(file, root, fps=30, codec="ffv1", size=(1280, 720)):
+def generate_video(fr, file, root, fps=30, codec="ffv1", size=(1280, 720)):
     """
     Save a video from a sparse tensor of events
     """
+    for polygon in fr.shapes_present:
+        # Create a video writer
+        filename = root / f"{str(file.parent.name)}_{polygon}.avi"
+        # Open mask file
+        with recording.MaskFile(fr.mask_file, polygon) as mask_read:
+            with imageio.get_writer(filename, fps=fps, codec=codec) as writer:
+                for i in tqdm_ray.tqdm(
+                    range(fr.frame_number), desc=f"{file.stem} video {polygon}"
+                ):
+                    # 1. Extract frame
+                    frame_pol = fr.frame(i).sum(0).to_dense().permute(2, 1, 0)
+                    # Add a blue + alpha channel
+                    alpha = torch.ones(*frame_pol.shape[:-1], 1)
+                    frame_rgba = torch.concat(
+                        [
+                            frame_pol.clip(0, 1),
+                            torch.zeros(*frame_pol.shape[:-1], 1),
+                            alpha,
+                        ],
+                        dim=-1,
+                    )
+                    # 2. Extract mask
+                    mask_orig = mask_read[i]
+                    mask_bool = torch.from_numpy(mask_orig).T.unsqueeze(-1)
+                    mask_rgba = torch.concat(
+                        [
+                            mask_bool.repeat(1, 1, 3) * 0.2,
+                            (alpha - 1) * mask_bool,
+                        ],
+                        dim=-1,
+                    )
+                    frame = (
+                        ((frame_rgba + mask_rgba).clip(0, 1) * 255)
+                        .numpy()
+                        .astype(np.uint8)
+                    )
+                    writer.append_data(frame)
+
+
+@ray.remote
+def process_file(file, render_video, skip_frames, total_bar):
     with recording.EventRecording(file) as fr:
         try:
             n_frames = fr.frame_number
         except:
-            print("Error in file", file)
+            logging.warning(f"Error file {file} malformed, no 'frame_number' key")
             return
 
-        for polygon in fr.shapes_present:
-            # Create a video writer
-            filename = root / f"{str(file.parent.name)}_{polygon}.avi"
-            # Open mask file
-            with h5py.File(fr.mask_file, mode="r") as mask_read:
-                with imageio.get_writer(filename, fps=fps, codec=codec) as writer:
-                    for i in tqdm_ray.tqdm(range(n_frames)):
-                        # 1. Extract frame
-                        frame_pol = fr.frame(i).sum(0).to_dense().permute(2, 1, 0)
-                        # Add a blue + alpha channel
-                        alpha = torch.ones(*frame_pol.shape[:-1], 1)
-                        frame_rgba = torch.concat(
-                            [
-                                frame_pol.clip(0, 1),
-                                torch.zeros(*frame_pol.shape[:-1], 1),
-                                alpha,
-                            ],
-                            dim=-1,
-                        )
-                        # 2. Extract mask
-                        mask_orig = mask_read[f"{polygon}_mask"][i]
-                        mask_bool = torch.from_numpy(mask_orig).T.unsqueeze(-1)
-                        mask_rgba = torch.concat(
-                            [mask_bool.repeat(1, 1, 3) * 0.2, (alpha - 1) * mask_bool],
-                            dim=-1,
-                        )
-                        frame = (
-                            ((frame_rgba + mask_rgba).clip(0, 1) * 255)
-                            .numpy()
-                            .astype(np.uint8)
-                        )
-                        writer.append_data(frame)
+        try:
+            logging.info(f"Processing file {file}")
+            if not skip_frames:
+                add_bbox_to_file(fr)
+            if render_video:
+                generate_video(fr, file, render_video)
 
-
-@ray.remote
-def process_file(file, render_video, skip_frames):
-    if not skip_frames:
-        add_bbox_to_file(file)
-    if render_video:
-        generate_video(file, render_video)
+            total_bar.update.remote(1)
+        except Exception as e:
+            logging.error("Caught error", e)
 
 
 def track_progress(result_ids):
@@ -190,26 +200,24 @@ def track_progress(result_ids):
 
 
 def main(args):
-    ray.init()
+    ray.init(num_cpus=args.num_cpus)
     start_time = time.time()
 
     files = list(pathlib.Path(args.root).rglob("frames.h5"))
     video_path = pathlib.Path(args.render_video) if args.render_video else None
+
+    # Create a progress bar
+    remote_tqdm = ray.remote(tqdm_ray.tqdm)
+    total_bar = remote_tqdm.remote(total=len(files), desc="Task progress")
+
+    # Start the tasks
     result_ids = [
-        process_file.remote(file, video_path, args.skip_frames) for file in files
+        process_file.remote(file, video_path, args.skip_frames, total_bar)
+        for file in files
     ]
-
-    # Track the progress in a separate thread
-    from threading import Thread
-
-    progress_thread = Thread(target=track_progress, args=(result_ids,))
-    progress_thread.start()
 
     # Retrieve the results
     results = ray.get(result_ids)
-
-    # Wait for the progress thread to finish
-    progress_thread.join()
 
     print(f"Done processing {len(results)} files")
     print(f"Total time: {time.time() - start_time:.2f}s")
@@ -217,7 +225,14 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("root", type=str)
+    parser.add_argument(
+        "root",
+        type=str,
+        help="Root directory from which to locate recordings (already processed into frames",
+    )
     parser.add_argument("--skip-frames", action="store_true")
     parser.add_argument("--render-video", type=str)
+    parser.add_argument(
+        "--num-cpus", type=int, default=None, help="Number of CPUs to use. Default is all available"
+    )
     main(parser.parse_args())
