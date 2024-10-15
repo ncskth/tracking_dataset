@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 import math
 
 import h5py
@@ -53,12 +54,12 @@ POLYGONS["blob"] = [
 ]
 
 
-def get_frames_as_torch(f, start, end):
+def get_frames_as_torch(f, keys, values, start, end):
     start_index = f["frame_start_indexes"][start]
     end_index = f["frame_start_indexes"][end]
 
-    frame_keys_np = f["frame_keys"][start_index:end_index]
-    frame_values = f["frame_values"][start_index:end_index]
+    frame_keys_np = keys[start_index:end_index]
+    frame_values = values[start_index:end_index]
 
     num_elements = len(frame_keys_np)
     num_fields = len(frame_keys_np.dtype.names)
@@ -78,6 +79,25 @@ def get_frames_as_torch(f, start, end):
     return sp
 
 
+@dataclasses.dataclass
+class MaskFile:
+
+    file: str
+    polygon: str
+
+    @functools.cached_property
+    def mask(self):
+        return self.fp[f"{self.polygon}_mask"][()]
+    
+    def __getitem__(self, index):
+        return self.mask[index]
+    
+    def __enter__(self):
+        self.fp = h5py.File(self.file)
+        return self
+    
+    def __exit__(self, *exc):
+        self.fp.close()
 
 @dataclasses.dataclass
 class EventRecording:
@@ -86,20 +106,32 @@ class EventRecording:
     resolution = np.array([1280, 720])
 
     def frame(self, index):
-        return get_frames_as_torch(self.fp, index, index + 1)
+        return get_frames_as_torch(
+            self.fp, self.frame_keys, self.frame_values, index, index + 1
+        )
 
     @property
     def frame_indices(self):
         return self.fp["frame_start_indexes"]
-    
+
     @property
     def frame_number(self):
         return self.fp["frame_keys"][-1][0]
 
     @property
     def frames(self):
-        return get_frames_as_torch(self.fp, 0, len(self.frame_indices) - 1)
+        return get_frames_as_torch(
+            self.fp, self.frame_keys, self.frame_values, 0, len(self.frame_indices) - 1
+        )
 
+    @functools.cached_property
+    def frame_values(self):
+        return self.fp["frame_values"][()]
+
+    @functools.cached_property
+    def frame_keys(self):
+        return self.fp["frame_keys"][()]
+    
     @property
     def keys(self):
         return self.fp.keys()

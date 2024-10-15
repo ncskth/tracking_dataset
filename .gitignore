@@ -1,2 +1,7 @@
 __pycache__/
 .ipynb_checkpoints/
+.venv/
+fmt/
+h5pp/
+openeb/
+flatbuffers/

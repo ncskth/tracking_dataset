@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision
-import sparse
 import time
 import tqdm
 import math
@@ -131,7 +130,7 @@ blob_polygon = [
     [offset_x, 0, offset_z],
 ]
 
-file_rec = "../recorder/build/blab/frames.h5"
+file_rec = "basic_shapes/triangle/rotation/2024_02_04_20_21_45_triagle_none_rot_left_processed/frames.h5"
 
 with h5py.File(file_rec) as f:
     start = time.time()
@@ -143,6 +142,6 @@ with h5py.File(file_rec) as f:
     for i in range(100, 10000, 500):
         sp = get_frames_as_torch(f, i, i + 1)
         video = sparse_to_video(sp, i, 1)
-        poses = f["blob"]
-        draw_frame(video[0], poses[i], blob_polygon)
+        poses = f["triangle"]
+        draw_frame(video[0], poses[i], triangle_polygon)
         plt.show()
