@@ -90,9 +90,13 @@ std::string optitrack_id_to_name(enum optitrack_ids id) {
         case BLOB0:
             return std::string("blob");
         case PLIER:
-            return std::string("plier");
+            return std::string("pliers");
         case HAMMER:
             return std::string("hammer");
+        case SCREWDRIVER:
+            return std::string("screwdriver");
+        case WRENCH:
+            return std::string("wrench");
         case SAW:
             return std::string("saw");
 
