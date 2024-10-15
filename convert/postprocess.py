@@ -199,12 +199,27 @@ def track_progress(result_ids):
         time.sleep(1)  # Small delay to avoid busy waiting
 
 
+# Filter out malformed files
+def filter_files(files):
+    for f in files:
+        try:
+            with recording.EventRecording(f) as fr:
+                n_frames = fr.frame_number
+        except:
+            logging.warning(f"Error file {f} malformed, no 'frame_number' key")
+            files.remove(f)
+    return files
+
+
 def main(args):
     ray.init(num_cpus=args.num_cpus)
     start_time = time.time()
 
     files = list(pathlib.Path(args.root).rglob("frames.h5"))
     video_path = pathlib.Path(args.render_video) if args.render_video else None
+
+    # Filter out malformed files
+    files = filter_files(files)
 
     # Create a progress bar
     remote_tqdm = ray.remote(tqdm_ray.tqdm)
@@ -233,6 +248,9 @@ if __name__ == "__main__":
     parser.add_argument("--skip-frames", action="store_true")
     parser.add_argument("--render-video", type=str)
     parser.add_argument(
-        "--num-cpus", type=int, default=None, help="Number of CPUs to use. Default is all available"
+        "--num-cpus",
+        type=int,
+        default=None,
+        help="Number of CPUs to use. Default is all available",
     )
     main(parser.parse_args())
