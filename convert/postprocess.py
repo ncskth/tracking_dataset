@@ -183,7 +183,7 @@ def process_file(file, render_video, masks, bbox, total_bar):
         try:
             logging.info(f"Processing file {file}")
             if masks or bbox:
-                add_bbox_to_file(fr, masks, bbox)
+                add_bbox_to_file(fr, add_masks=masks, add_bbox=bbox)
             if render_video:
                 generate_video(fr, file, render_video)
 
