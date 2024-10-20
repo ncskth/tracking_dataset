@@ -63,7 +63,9 @@ def render_mask_and_bbox(pose, polygon, size=np.array((1280, 720))):
     return array, np.array([bbox.x0, bbox.y0, bbox.x1, bbox.y1])
 
 
-def add_bbox_to_file(fr, size=np.array((1280, 720))):
+def add_bbox_to_file(
+    fr, size=np.array((1280, 720)), add_masks: bool = False, add_bbox: bool = False
+):
     mask_shapes = []
     n_frames = fr.frame_number
 
@@ -71,7 +73,7 @@ def add_bbox_to_file(fr, size=np.array((1280, 720))):
     with h5py.File(fr.mask_file, mode="w") as mask_write:
         masks = {}
         for polygon in recording.POLYGONS.keys():
-            if polygon in fr.shapes_present:
+            if polygon in fr.shapes_present and add_masks:
                 masks[polygon] = mask_write.create_dataset(
                     f"{polygon}_mask",
                     (n_frames, *size),
@@ -83,7 +85,7 @@ def add_bbox_to_file(fr, size=np.array((1280, 720))):
         with h5py.File(fr.bbox_file, mode="w") as bbox_write:
             bboxes = {}
             for polygon in recording.POLYGONS.keys():
-                if polygon in fr.shapes_present:
+                if polygon in fr.shapes_present and add_bbox:
                     bboxes[polygon] = bbox_write.create_dataset(
                         f"{polygon}_bbox",
                         (n_frames, 4),
@@ -108,7 +110,9 @@ def add_bbox_to_file(fr, size=np.array((1280, 720))):
                     mask, bbox = render_mask_and_bbox(
                         poses[polygon][i], recording.POLYGONS[polygon], size
                     )
-                    bboxes[polygon][i] = bbox
+                    if add_bbox:  # Add bbox, if requested
+                        bboxes[polygon][i] = bbox
+
                     # Add masks in buffer to speed up compression
                     if len(buffer) >= buffer_size:
                         masks[polygon][
@@ -116,7 +120,9 @@ def add_bbox_to_file(fr, size=np.array((1280, 720))):
                         ] = buffer
                         buffer_index += len(buffer)
                         buffer = []
-                    buffer.append(mask)
+                    # Add mask to buffer, if requested
+                    if add_masks:
+                        buffer.append(mask)
                 # Add remaining buffered frames
                 if len(buffer) > 0:
                     masks[polygon][buffer_index : buffer_index + len(buffer)] = buffer
@@ -166,7 +172,7 @@ def generate_video(fr, file, root, fps=30, codec="ffv1", size=(1280, 720)):
 
 
 @ray.remote
-def process_file(file, render_video, skip_frames, total_bar):
+def process_file(file, render_video, masks, bbox, total_bar):
     with recording.EventRecording(file) as fr:
         try:
             n_frames = fr.frame_number
@@ -176,8 +182,8 @@ def process_file(file, render_video, skip_frames, total_bar):
 
         try:
             logging.info(f"Processing file {file}")
-            if not skip_frames:
-                add_bbox_to_file(fr)
+            if masks or bbox:
+                add_bbox_to_file(fr, masks, bbox)
             if render_video:
                 generate_video(fr, file, render_video)
 
@@ -227,7 +233,7 @@ def main(args):
 
     # Start the tasks
     result_ids = [
-        process_file.remote(file, video_path, args.skip_frames, total_bar)
+        process_file.remote(file, video_path, args.masks, args.bbox, total_bar)
         for file in files
     ]
 
@@ -245,7 +251,8 @@ if __name__ == "__main__":
         type=str,
         help="Root directory from which to locate recordings (already processed into frames",
     )
-    parser.add_argument("--skip-frames", action="store_true")
+    parser.add_argument("--bbox", action="store_true")
+    parser.add_argument("--masks", action="store_true")
     parser.add_argument("--render-video", type=str)
     parser.add_argument(
         "--num-cpus",
